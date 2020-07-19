@@ -1,0 +1,7 @@
+{
+"version": 3,
+"mappings": "AAEA,+CAA2C;EACvC,KAAK,EAAC,IAAI",
+"sources": ["data_import.scss"],
+"names": [],
+"file": "data_import.css"
+}

@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+{% block title %}角色管理{% endblock %}
+{% block custom_css %}
+{% endblock %}
+{% block header_js %}
+{% endblock %}
+{% block custom_content %}
+    <el-card style="margin: 0">
+        <el-form size="mini">
+            <el-form-item label="名称:" size="mini">
+                <el-input v-model="name" placeholder="名称"  style="width:240px"></el-input>
+                <el-button type="primary" @click="searchBtnClick">查询</el-button>
+                <el-button type="primary" @click="openAddRoleForm">添加</el-button>
+            </el-form-item>
+        </el-form>
+        <el-form v-if="addFormFlag" :model="addForm" :rules="addFormRules" ref="addForm" size="mini" class="add-form">
+            <div class="inline-col">
+                <el-form-item prop="name" size="mini">
+                    <el-input v-model="addForm.name" placeholder="名称" style="width:200px"></el-input>
+                </el-form-item>
+                <el-form-item prop="key" size="mini">
+                    <el-input v-model="addForm.key" placeholder="关键字" style="width:300px"></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" @click="closeAddRole">取消</el-button>
+                    <el-button type="primary" @click="addRole">添加</el-button>
+                </el-form-item>
+            </div>
+        </el-form>
+    </el-card>
+    <el-card class="main-card">
+        {% raw %}
+        <el-form :model="editRoleForm" :rules="editRoleFormRules" ref="editRoleForm" size="mini">
+            <el-table :data="tableData" style="width:100%" size="mini" border>
+                <el-table-column label="名称">
+                    <template slot-scope="scope">
+                        <template v-if="editIndex!=scope.$index">
+                            {{ scope.row.name }}
+                        </template>
+                        <template v-if="editIndex==scope.$index">
+                            <el-form-item prop="name">
+                            <el-input v-model="editRoleForm.name" style="max-width: 200px"></el-input>
+                            </el-form-item>
+                        </template>
+                    </template>
+                </el-table-column>
+                <el-table-column label="关键字">
+                    <template slot-scope="scope">
+                        <template v-if="editIndex!=scope.$index">
+                            {{ scope.row.key }}
+                        </template>
+                        <template v-if="editIndex==scope.$index">
+                            <el-form-item prop="key">
+                                <el-input v-model="editRoleForm.key" style="max-width: 300px"></el-input>
+                            </el-form-item>
+                        </template>
+                    </template>
+
+                </el-table-column>
+                <el-table-column label="操作"  min-width="120px">
+                    <template slot-scope="scope">
+                        <el-button size="mini" @click="handleSaveEdit(scope.row)" v-if="editIndex==scope.$index">保存</el-button>
+                        <el-button size="mini" @click="handleCloseEdit" v-if="editIndex==scope.$index">取消</el-button>
+                        <el-button size="mini" @click="handleOpenEdit(scope.$index, scope.row)" v-if="editIndex!=scope.$index">编辑</el-button>
+                        <el-button size="mini" type="danger" @click="handleDel(scope.$index, scope.row)">删除</el-button>
+                        <el-button size="mini" @click="handleEditRoleMenus(scope.$index, scope.row)">编辑角色菜单</el-button>
+                        <el-button size="mini" @click="handleEditRoleResources(scope.$index, scope.row)">编辑角色资源</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+            {% endraw %}
+            <el-pagination background layout="total, prev, pager, next" :page-size="20" :total="total" @current-change="handleCurrentChange"></el-pagination>
+        </el-form>
+    </el-card>
+    <el-dialog title="编辑角色显示的菜单" :visible.sync="dialogRoleMenuVisible">
+        <el-tree :data="allMenus" show-checkbox node-key="_id" check-strictly="true" default-expand-all="true" :default-checked-keys="menuDefaultChecked" :props="menuDefaultProps" ref="roleMenuTree"></el-tree>
+        <div slot="footer" class="dialog-footer">
+        <el-button @click="dialogRoleMenuVisible = false" size="mini">取 消</el-button>
+        <el-button type="primary" @click="submitRoleMenus" size="mini">确 定</el-button>
+        </div>
+    </el-dialog>
+    <el-dialog title="编辑角色可以访问的资源" :visible.sync="dialogRoleResourceVisible">
+        <el-checkbox :indeterminate="isIndeterminate" v-model="checkAll" @change="handleCheckAllChange">全选</el-checkbox>
+        <el-checkbox-group v-model="resourceDefaultChecked" @change="handleCheckedResourcesChange">
+            {% raw %}
+            <el-checkbox :label="resource._id" v-for="resource in allResources">{{ resource.name }}</el-checkbox>
+            {% endraw %}
+        </el-checkbox-group>
+        <div slot="footer" class="dialog-footer">
+        <el-button @click="dialogRoleResourceVisible = false" size="mini">取 消</el-button>
+        <el-button type="primary" @click="submitRoleResources" size="mini">确 定</el-button>
+        </div>
+    </el-dialog>
+{% endblock %}
+{% block custom_js %}
+    <script>
+
+        let newData = JSON.parse(JSON.stringify(commonData));
+        newData.sideBarMenus=sideBarMenus;
+        newData.isCollapse=isCollapse;
+        newData.icons=icons;
+        newData.defaultActive='1';
+        newData.breadcrumbs=['系统管理','角色管理'];
+        newData.allMenus=[];
+        newData.allResources=[];
+        newData.dialogRoleMenuVisible=false;
+        newData.dialogRoleResourceVisible=false;
+        newData.tableData=[];
+        newData.name='';
+        newData.defaultSearchForm={name:''};
+        newData.submitLoading=false;
+        newData.addFormFlag=false;
+        newData.addForm={name:'',key:''};
+        newData.addFormRules={
+            name: [{ required: true, message: '请输入角色名称', trigger: ['blur','change'] }],
+            key: [{ required: true, message: '请输入角色关键字', trigger: ['blur','change'] }],
+        };
+        newData.editIndex=2000;
+        newData.editRoleForm={_id:'',name:'',key:''};
+        newData.editRoleFormRules={
+            name: [{ required: true, message: '请输入角色名称', trigger: ['blur','change'] }],
+            key: [{ required: true, message: '请输入角色关键字', trigger: ['blur','change']}],
+        };
+        newData.total=0;
+        newData.roleMenuId='';
+        newData.roleMenuIndex='';
+        newData.menuDefaultChecked=[];
+        newData.menuDefaultProps= {
+          children: 'children',
+          label: 'name'
+        };
+        newData.roleResourceId='';
+        newData.roleResourceIndex='';
+        newData.resourceDefaultChecked=[];
+        newData.isIndeterminate= true;
+        newData.checkAll= false;
+
+        let newMethods = Object.assign({},commonMethods);
+        newMethods.searchBtnClick=function(){
+            this.defaultSearchForm = {'name':this.name};
+            this.searchRoles(1);
+        };
+        newMethods.searchRoles=function(pageNum){
+            let $this = this;
+
+<!-- 分页查询角色 -->
+            $.ajax({
+                url:'/system/role/roles/',
+                data:{
+                    'name':$this.defaultSearchForm.name,
+                    'pageNum':pageNum
+                },
+                method:'post',
+                success:function (data) {
+                    if(data.status){
+                        $this.tableData = data.data;
+                        $this.total = data.total;
+                    }else {
+                        handleError(data, $this);
+                    }
+                },
+                error:function (jqXHR, textStatus, errorThrown) {
+                    $this.$message.error('服务器有异常，请稍后重试');
+                }
+                });
+        };
+        newMethods.handleCurrentChange=function(val){
+            this.searchRoles(val);
+        };
+        newMethods.openAddRoleForm=function(){
+            this.addForm={name:'',key:''};
+            this.addFormFlag = true;
+        };
+        newMethods.closeAddRole=function(){
+            this.addForm={name:'',key:''};
+            this.addFormFlag=false;
+        };
+        newMethods.addRole=function(){
+            let $this = this;
+            this.$refs['addForm'].validate(function(valid){
+                if (valid) {
+
+<!-- 添加角色 -->
+                    $.ajax({
+                        url:'/system/role/add/',
+                        data:{
+                            'name':$this.addForm.name,
+                            'key':$this.addForm.key,
+                        },
+                        method:'post',
+                        success:function (data) {
+                            if(data.status){
+                                $this.searchRoles(1);
+                                $this.$message.success('添加成功');
+                            }else{
+                                handleError(data, $this);
+                            }
+                        },
+                        error:function (jqXHR, textStatus, errorThrown) {
+                            $this.$message.error('服务器有异常，请稍后重试');
+                        }
+                    });
+                }else{
+                    return false;
+                }
+            });
+        };
+        newMethods.handleOpenEdit=function(index, row){
+            this.editRoleForm = {_id:row._id,name:row.name,key:row.key};
+            this.editIndex = index;
+        };
+        newMethods.handleCloseEdit=function(){
+            this.editRoleForm = {_id:'',name:'',key:''};
+            this.editIndex = 2000;
+        };
+        newMethods.handleDel=function(index,row){
+            let $this = this;
+            this.$confirm('此操作将永久删除'+row.key+'角色, 是否继续?', '提示', {
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                type: 'warning'
+            }).then(function(){
+
+<!-- 删除角色 -->
+                $.ajax({
+                    url:'/system/role/del/',
+                    data:{
+                        '_id':row._id,
+                    },
+                    method:'post',
+                    success:function (data) {
+                        if(data.status){
+                            $this.tableData.splice(index, 1);
+                            $this.$message.success('删除成功');
+                            $this.searchRoles(1);
+                        }else{
+                            handleError(data, $this);
+                        }
+                    },
+                    error:function (jqXHR, textStatus, errorThrown) {
+                        $this.$message.error('服务器有异常，请稍后重试');
+                    }
+                });
+
+            }).catch(function(){
+                this.$message({
+                type: 'info',
+                message: '已取消删除'
+                });
+            });
+        };
+        newMethods.handleSaveEdit=function(row){
+            var $this = this;
+            if(this.editRoleForm.name===row.name && this.editRoleForm.key===row.key){
+                $this.editIndex=2000;
+                $this.$message.success('修改成功');
+            }else{
+                this.$refs['editRoleForm'].validate(function(valid){
+                    if (valid) {
+
+<!-- 修改角色 -->
+                        $.ajax({
+                            url:'/system/role/edit/',
+                            data:{
+                                '_id':$this.editRoleForm._id,
+                                'name':$this.editRoleForm.name,
+                                'key':$this.editRoleForm.key,
+                            },
+                            method:'post',
+                            success:function (data) {
+                                if(data.status){
+                                    row.name=$this.editRoleForm.name;
+                                    row.key=$this.editRoleForm.key;
+                                    $this.editIndex=2000;
+                                    $this.$message.success('修改成功');
+                                }else{
+                                    handleError(data, $this);
+                                }
+                            },
+                            error:function (jqXHR, textStatus, errorThrown) {
+                                $this.$message.error('服务器有异常，请稍后重试');
+                            }
+                        });
+                    }else{
+                        return false;
+                    }
+                });
+            }
+        };
+        newMethods.handleEditRoleMenus=function(index, row){
+            this.roleMenuId = row._id;
+            this.roleMenuIndex = index;
+            this.menuDefaultChecked = row.menus;
+            this.dialogRoleMenuVisible = true;
+        };
+        newMethods.handleEditRoleResources=function(index, row){
+            this.roleResourceId = row._id;
+            this.roleResourceIndex = index;
+            if(row.resources){
+                this.resourceDefaultChecked = row.resources;
+            }else{
+                this.resourceDefaultChecked = [];
+            }
+            let checkedCount = this.resourceDefaultChecked.length;
+            this.isIndeterminate = checkedCount > 0 && checkedCount < this.allResources.length;
+            this.checkAll = checkedCount === this.allResources.length;
+            this.dialogRoleResourceVisible = true;
+        };
+        newMethods.submitRoleMenus=function () {
+            let $this = this;
+            let checkedKeys = $this.$refs.roleMenuTree.getCheckedKeys();
+
+<!-- 编辑角色菜单 -->
+            $.ajax({
+                url:'/system/role/menu/edit/',
+                data:{
+                    '_id':$this.roleMenuId,
+                    'menus':checkedKeys,
+                },
+                method:'post',
+                success:function (data) {
+                    if(data.status){
+                        $this.tableData[$this.roleMenuIndex]['menus'] = checkedKeys;
+                        $this.dialogRoleMenuVisible = false;
+                        $this.$message.success('修改成功');
+                        $this.initUserMenus($this);
+                    }else{
+                        handleError(data, $this);
+                    }
+                },
+                error:function (jqXHR, textStatus, errorThrown) {
+                    $this.$message.error('服务器有异常，请稍后重试');
+                }
+            });
+        };
+        newMethods.handleCheckAllChange=function(val) {
+            let allResourceIds = [];
+            for(let resource of this.allResources){
+                allResourceIds.push(resource['_id']);
+            }
+            this.resourceDefaultChecked = val ? allResourceIds : [];
+            this.isIndeterminate = false;
+        };
+        newMethods.handleCheckedResourcesChange=function(value) {
+            let checkedCount = value.length;
+            this.checkAll = checkedCount === this.allResources.length;
+            this.isIndeterminate = checkedCount > 0 && checkedCount < this.allResources.length;
+        };
+        newMethods.submitRoleResources=function () {
+            let $this = this;
+
+<!-- 编辑角色资源 -->
+            $.ajax({
+                url:'/system/role/resource/edit/',
+                data:{
+                    '_id':$this.roleResourceId,
+                    'resources':$this.resourceDefaultChecked,
+                },
+                method:'post',
+                success:function (data) {
+                    if(data.status){
+                        $this.tableData[$this.roleResourceIndex]['resources'] = $this.resourceDefaultChecked;
+                        $this.dialogRoleResourceVisible = false;
+                        $this.$message.success('修改成功');
+                    }else{
+                        handleError(data, $this);
+                    }
+                },
+                error:function (jqXHR, textStatus, errorThrown) {
+                    $this.$message.error('服务器有异常，请稍后重试');
+                }
+            });
+        };
+
+        var vm = new Vue({
+            el: '#app',
+            data: function () {
+                return newData;
+            },
+            methods: newMethods
+        });
+        $(function () {
+            vm.searchRoles(1);
+            vm.initLocalUserMenus(vm);
+            vm.initUserMenus(vm);
+            vm.initAllMenus(vm);
+            vm.initAllResources(vm);
+		});
+    </script>
+{% endblock %}

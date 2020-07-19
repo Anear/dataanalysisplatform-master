@@ -1,0 +1,24 @@
+{
+  "name": "plot_engine",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "echarts": "^4.2.1",
+    "font-awesome": "^4.7.0",
+    "font-awesome5": "^1.0.5",
+    "jquery": "^3.3.1",
+    "vue": "^2.5.17",
+    "vue-echarts": "^4.0.3"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitee.com/Rene0410/plot_engine.git"
+  },
+  "author": "",
+  "license": "ISC"
+}

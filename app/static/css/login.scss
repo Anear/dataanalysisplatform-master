@@ -1,0 +1,79 @@
+@import "normalize";
+[v-cloak] { display: none }
+
+@mixin relative {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+
+.tips{
+  font-size: 14px;
+  color: #fff;
+  margin-bottom: 5px;
+}
+.login-container {
+  @include relative;
+  height: 100vh;
+  input {
+    background: transparent;
+    border: 0;
+    -webkit-appearance: none;
+    border-radius: 0;
+    padding: 12px 5px 12px 15px;
+    height: 47px;
+  }
+  .el-input {
+    display: inline-block;
+    height: 47px;
+    border: 1px solid #e4e0e0;
+    border-radius: 5px;
+    &.validate{
+      width: 200px;
+    }
+  }
+  .validate-code{
+    width: 130px;
+    vertical-align: middle;
+  }
+  .svg-container {
+    padding: 6px 5px 6px 15px;
+    color: #889aa4;
+  }
+  .title {
+    font-size: 26px;
+    margin: 0 auto 40px auto;
+    text-align: center;
+    font-weight: bold;
+  }
+  .login-form {
+    background-size: cover;
+    position: absolute;
+    left: 0;
+    right: 0;
+    width: 400px;
+    padding: 35px 35px 15px 35px;
+    margin: 120px auto;
+    background-color: #fff;
+    border-radius: 5px;
+  }
+  .el-form-item {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    color: #454545;
+  }
+
+  .forget-pwd {
+    color: #fff;
+  }
+}
+
+
+body{
+  background:url(/img/login_bg.jpg) no-repeat;
+  background-size: cover;
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  -o-background-size: cover;
+}

@@ -1,0 +1,1017 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>{% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/element-ui/lib/theme-chalk/index.css')}}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/font-awesome5/css/fontawesome-all.min.css')}}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.min.css')}}">
+
+<style>
+    .el-tree-node__content {
+        display: -webkit-box;
+        display: -ms-flexbox;
+        display: flex;
+        -webkit-box-align: center;
+        -ms-flex-align: center;
+        align-items: center;
+        height: 26px;
+        cursor: pointer;
+        background: #abd2f1;
+    }
+    .headerbar{
+        /*background: #ffd000;*/
+        background: #373747;
+    }
+    .elmenus{
+        background:#373747;
+        /*background: #ffde00;*/
+    }
+
+    .el-submenu span{
+        color:#fff;
+    }
+    .el-submenu:hover span{
+        color: #000;
+    }
+</style>
+
+    {% block custom_css %}
+        <style>
+        .icon{
+       /*{#     width: 5px; height: 5px;#}*/
+       /*{#vertical-align: -0.15em;#}*/
+            font-size:12px;
+       fill: currentColor;
+       overflow: hidden;}
+        </style>
+    {% endblock %}
+
+    {% block header_js %}
+    {% endblock %}
+
+</head>
+<body>
+    <el-container id="app" style="height: 100%;" v-cloak>
+        <el-container>
+            <el-header style="font-size: 12px;height: 50px" class="headerbar">
+                <ul class="decision-nav decision-layout-left decision-nav-open">
+                    <li class="decision-nav-item" >
+                        <el-menu mode="horizontal" class="elmenus" :collapse="isCollapse" :unique-opened="true" :collapse-transition="false"
+                        active-text-color="#fff"
+                         text-color="#000"
+                        >
+                            {% raw %}
+                            <template v-for="menu in sideBarMenus">
+
+
+                                <template v-if="menu.children.length<=0">
+                                    <el-menu-item :index="menu._id" v-if="menu.type==1" style="padding-left: 12px">
+                                        <span slot="title">{{ menu.name }}</span>
+                                    </el-menu-item>
+                                    <a :href="menu.url" v-if="menu.type==2">
+                                        <el-menu-item :index="menu._id" style="padding-left: 12px;">
+                                            <span slot="title">{{ menu.name }}</span>
+                                        </el-menu-item>
+                                    </a>
+                                </template>
+
+
+                                <el-submenu :index="menu._id" v-if="menu.children.length>0">
+                                    <template slot="title" style="padding-left: 12px">
+                                        <span>{{ menu.name }}</span>
+                                    </template>
+
+
+                                    <template v-for="subMenu in menu.children">
+                                        <template v-if="subMenu.type==1">
+                                            <el-menu-item :index="menu._id+'-'+subMenu._id" v-if="subMenu.children.length<=0">{{ subMenu.name }}</el-menu-item>
+                                            <el-submenu :index="menu._id+'-'+subMenu._id" v-if="subMenu.children.length>0">
+                                                <template slot="title">{{ subMenu.name }}</template>
+                                                <template v-for="subMenu2 in subMenu.children">
+                                                    <template v-if="subMenu2.type==1">
+
+                                                        <el-menu-item :index="menu._id+'-'+subMenu._id+'-'+subMenu2._id" v-if="subMenu2.children.length<=0">{{ subMenu2.name }}</el-menu-item>
+
+
+                                                        <el-submenu :index="menu._id+'-'+subMenu._id+'-'+subMenu2._id" v-if="subMenu2.children.length>0">
+                                                            <template slot="title">{{ subMenu2.name }}</template>
+                                                            <template v-for="subMenu3 in subMenu2.children">
+                                                                <el-menu-item :index="menu._id+'-'+subMenu._id+'-'+subMenu2._id+'-'+subMenu3._id" v-if="subMenu3.type==1">{{ subMenu3.name }}</el-menu-item>
+                                                                <a :href="subMenu3.url" v-if="subMenu3.type==2">
+                                                                    <el-menu-item :index="menu._id+'-'+subMenu._id+'-'+subMenu2._id+'-'+subMenu3._id">
+                                                                        {{ subMenu3.name }}
+                                                                    </el-menu-item>
+                                                                </a>
+                                                            </template>
+                                                        </el-submenu>
+
+
+                                                    </template>
+                                                    <a :href="subMenu2.url" v-if="subMenu2.type==2">
+                                                        <el-menu-item :index="menu._id+'-'+subMenu._id+'-'+subMenu2._id">{{ subMenu2.name }}</el-menu-item>
+                                                    </a>
+                                                </template>
+                                            </el-submenu>
+                                        </template>
+                                        <a :href="subMenu.url" v-if="subMenu.type==2">
+                                            <el-menu-item :index="menu._id+'-'+subMenu._id">{{ subMenu.name }}</el-menu-item>
+                                        </a>
+                                    </template>
+                                </el-submenu>
+                            </template>
+                            {% endraw %}
+                      </el-menu>
+                    </li>
+                </ul>
+
+
+                <ul class="decision-nav decision-layout-right">
+                    <li class="decision-nav-item">
+                        <el-dropdown>
+                            <span class="el-dropdown-link">
+                                {{ session.user }}<i class="el-icon-arrow-down el-icon--right"></i>
+                            </span>
+                            <el-dropdown-menu slot="dropdown">
+                                <a href="/password/reset/"><el-dropdown-item>修改密码</el-dropdown-item></a>
+                                <a href="/logout/"><el-dropdown-item>退出</el-dropdown-item></a>
+                            </el-dropdown-menu>
+                        </el-dropdown>
+                    </li>
+                </ul>
+            </el-header>
+            <el-main>
+
+
+                <div :style="changeForm?'margin-left: 300px':'margin-left: 68px'">
+                    <el-breadcrumb separator-class="el-icon-arrow-right" class="main-breadcrumb">
+                        {% raw %}
+                        <el-breadcrumb-item v-for="breadItem in breadcrumbs">{{ breadItem }}</el-breadcrumb-item>
+                        {% endraw %}
+                    </el-breadcrumb>
+                </div>
+                <div class="main-content" >
+                    <div style="width: 68px;height: 88%;position: absolute;background-color: #213e66">
+                        <ul style="list-style-type:none;padding-left: 0px;margin-top: -40px;background-color: #01427c;padding-top:20px" align="center">
+
+<!--  note模块 -->
+                            <li @click="handleNotebook" style="width: 68px;height: 80px" id="handleNotebook">
+                               <div style="color:white">
+                                    <svg class="icon" aria-hidden="true" width="24px" height="24px" id="noteWhite" style="display:none;margin-left:5px">
+                                        <use xlink:href="#icon-book-copy-2"></use>
+                                    </svg>
+                                    <svg class="icon" aria-hidden="true" width="24px" height="24px" id="noteBlack" style="display:none">
+                                        <use xlink:href="#icon-book-copy"></use>
+                                    </svg><br> NOTE
+
+                               </div>
+                            </li>
+
+<!-- 数据库模块 -->
+                            <li @click="handleDataBase" style="width: 68px;height: 80px" id="handleDataBase">
+                                <div style="color:white">
+                                    <svg class="icon" aria-hidden="true" width="24px" id="dataBaseWhite" height="24px" style="display:none;margin-left:5px">
+                                        <use xlink:href="#icon-shuju-copy"></use>
+                                    </svg>
+                                     <svg class="icon" aria-hidden="true" width="24px" id="dataBaseBlack" height="24px" style="display:none">
+                                        <use xlink:href="#icon-shuju-copy-copy"></use>
+                                    </svg><br>
+                                    数据库</div>
+                            </li>
+
+
+<!-- 知识库模块 -->            <li @click="handleKnowledgeBase" style="width: 68px;height: 80px" id="handleKnowledgeBase">
+                                <div style="color:white">
+                                     <svg class="icon" aria-hidden="true" width="24px"  id="knowledgeBaseWhite" height="24px"  style="display:none;margin-left:5px">
+                                        <use xlink:href="#icon-maozi1"></use>
+                                    </svg>
+                                     <svg class="icon" aria-hidden="true" width="24px"  id="knowledgeBaseBlack"  height="24px"  style="display:none">
+                                        <use xlink:href="#icon-maozi1-copy"></use>
+                                    </svg><br>
+                                    知识库</div>
+                            </li>
+
+                        </ul>
+                    </div>
+                    <div style="width: 200px;height:88%;margin-left: 68px;position: absolute" v-if="changeForm">
+
+                        <!--  note模块 -->       <template v-if="changeForm==1"  >
+                             <div style="width: 233px;height:105.9%;margin-left: 0px;margin-top: -50px;background-color: #5e5e6a">
+
+                             <el-form style="margin-left: 15px;margin-top: 10px;inline:true;">
+                                 <el-input v-model="note" placeholder="请输入记事本名称" style="margin-top: 10px;width:200px" size="mini"></el-input>
+                                 <el-button  size="mini" type="primary" style="margin-top: 10px;width:90px" @click="createNote()">创建</el-button>
+                                 <el-button  size="mini" type="primary" style="margin-top: 10px;width:90px" @click="searchNote()">搜索</el-button>
+
+
+                                 <div style="height: 30px" v-for="data in notes" v-if="noteShow">
+                                    {% raw %}
+                                    <el-button type="text" v-model="dataName"  style=" width:180px;text-align:left" @click="handleNoteData(data)">{{ data }}</el-button>
+                                     <i class="el-icon-delete" v-model="delNoteName" @click="handleDeleteNote(data)"></i>
+                                    {% endraw %}
+                                </div>
+                             </el-form>
+
+                             </div>
+                        </template>
+<!-- 数据库模块 -->
+                        <template v-if="changeForm==2">
+                            <div style="width: 233px;height: 105.9%;margin-left: 0px;margin-top: -50px;background-color: #5e5e6a">
+
+<!--上传数据集到数据库-->
+                                <el-form style="margin-left: 15px;margin-top: 10px">
+
+                                    <el-form-item>
+
+                                        <el-upload  ref="upload" limit="1" action="/import_description/data/upload/"
+                                            :before-upload="beforeUpload" :on-remove="handleRemove" :on-progress="handleOnProgress" :data="finalFileName"
+                                            :on-error="handleUploadError" :on-success="handleUploadSuccess" :file-list="fileList" :auto-upload="false">
+                                            <el-button slot="trigger" style="margin-top: 10px;width:190px" size="mini" type="primary">选取文件(xlsx、csv、txt文件)</el-button>
+                                                <el-form-item size="mini">
+                                                    <el-input placeholder="为选择的文件命名" style="margin-top: 10px;width:200px" v-model="fileName"></el-input>
+                                                </el-form-item>
+                                               {% raw %}
+<!--                                            style="margin-left: 10px;"-->
+                                              <el-button   size="mini" type="success" @click="submitUpload">{{ uploadText }}</el-button>
+                                              {% endraw %}
+                                              <div slot="tip" class="el-upload__tip">只能上传xlsx、csv、txt文件</div>
+                                            </el-upload>
+                                    </el-form-item>
+
+                                </el-form>
+<!--                                 <hr>-->
+
+
+                                <el-alert :title="nameAlter" type="info" :closable="false"></el-alert>
+                                    <template>
+                                        <div style="height: 20px" v-if="fileNames.length>0" v-for="data in fileNames">
+                                            {% raw %}
+                                            <el-button type="text" style="width:200px;text-align: left" v-model="dataName" @click="handleData(data)">{{ data }}</el-button>
+                                            <i class="el-icon-delete" v-model="delDataName" @click="handleDeleteData(data)" style="margin-top:10px"></i>
+                                            {% endraw %}
+                                        </div>
+                                    </template>
+
+
+                                <el-dialog title="提示" :visible.sync="dialogVisible" width="30%">
+                                    <span>确定删除该数据集吗?</span>
+                                    <span slot="footer" class="dialog-footer">
+                                        <el-button @click="dialogVisible = false">取 消</el-button>
+                                        <el-button type="primary" @click="dialogComFirm">确 定</el-button>
+                                    </span>
+                                </el-dialog>
+
+
+                                <el-dialog :title="dataName" :visible.sync="dialogTableVisible">
+
+
+                                    <el-dialog  :visible.sync="dialogSaveVisible" width="30%" append-to-body>
+                                        <el-form>
+                                            <el-form-item label="数据集名称：">
+                                                <el-input v-model="saveFileNameParameter" placeholder="请输入" style="width: 200px" size="small"></el-input>
+                                            </el-form-item>
+                                        </el-form>
+                                        <span>若数据集名称已存在则默认覆盖</span>
+                                        <span slot="footer" class="dialog-footer">
+                                            <el-button @click="dialogSaveVisible = false">取 消</el-button>
+                                            <el-button type="primary" @click="savePreprocess">确 定</el-button>
+                                        </span>
+                                    </el-dialog>
+
+
+                                    <el-collapse v-model="activeNames" @change="handleChange">
+                                        <el-collapse-item title="数据展示" name="1">
+                                            <template v-if="tableDatas.length>0">
+                                                <el-alert :title="numAlter" type="info" :closable="false"></el-alert>
+                                                <el-table :data="tableDatas" border style="width: 100%">
+                                                    <template v-for="col in cols">
+                                                        <el-table-column :prop="col" :label="col" :min-width="colWidths[col]"></el-table-column>
+                                                    </template>
+                                                </el-table>
+                                            </template>
+                                        </el-collapse-item>
+
+
+                                        <el-collapse-item title="基本特征" name="2">
+                                            <template v-if="tableDataFeature.length>0" >
+                                                <el-table :data="tableDataFeature" border style="width: 100%">
+                                                    <template v-for="col in basicCols">
+                                                        <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                                                    </template>
+                                                </el-table>
+                                            </template>
+                                        </el-collapse-item>
+                                    </el-collapse>
+
+
+                                    <el-form>
+                                        <el-form-item label="选择字段：">
+                                              <template v-if="tableDatas.length>0" >
+                                                  <el-checkbox-group v-model="dataFields" @change="handleCheckedColCitiesChange">
+                                                      <el-checkbox v-for="item in cols" :label="item" :key="item">{{item}}</el-checkbox>
+                                                      <el-checkbox :indeterminate="isIndeterminate" v-model="checkAll" @change="handleCheckAllColChange">全选</el-checkbox>
+                                                  </el-checkbox-group>
+                                              </template>
+                                        </el-form-item>
+                                        <el-form-item label="处理方法：">
+                                            <el-checkbox-group v-model="preProcessingList" :max="1">
+                                                <el-checkbox label="scaled">标准化</el-checkbox>
+                                                <el-checkbox label="diff">差分</el-checkbox>
+                                                <el-checkbox label="log_data">对数处理（以2为底）</el-checkbox>
+                                            </el-checkbox-group>
+                                        </el-form-item>
+                                        <template v-if="preProcessingList[0]=='diff'">
+                                            <el-form-item label="差分长度：">
+                                                <el-input v-model="diffParameter" placeholder="请输入" style="width: 100px" size="small"></el-input>
+                                            </el-form-item>
+                                        </template>
+                                        <el-form-item size="mini" style="margin-bottom: 1px">
+                                            <el-button type="primary"  @click="computePreprocess" style="margin-right: 70px;margin-top: 10px" size="small">计算</el-button>
+                                            <template v-if="process_result.length>0">
+                                                <el-button type="primary"  @click="dialogSaveOpen" style="margin-right: 70px;margin-top: 10px;background-color: #35775b" size="small">保存</el-button>
+                                            </template>
+                                        </el-form-item>
+                                        <el-form-item label="处理结果：">
+                                            <template v-if="process_result.length>0" >
+                                                  <el-table :data="process_result" border style="width: 100%">
+                                                      <template v-for="col in process_resultCols">
+                                                        <el-table-column :prop="col" :label="col" ></el-table-column>
+                                                      </template>
+                                                  </el-table>
+                                            </template>
+                                        </el-form-item>
+                                    </el-form>
+                                </el-dialog>
+                            </div>
+                        </template>
+
+<!-- 知识库 -->
+                        <template v-if="changeForm==3">
+                       <div style="width: 233px;height: 105.9%;margin-right: 0px;margin-top: -50px;background-color: #5e5e6a">
+
+
+                                <el-form style="margin-top: 10px"  style="background-color: #404444">
+                                  <el-tree
+                                    :data="data"
+                                    node-key="id"
+                                    @node-click="handleNodeClick"
+                                    default-expand-all
+                                    :props="defaultProps">
+                                {% raw %}
+                                    <span class="custom-tree-node" slot-scope="scope" >
+                                    <span><i :class="scope.node.data.icon"></i>{{ scope.node.data.label }}</span>
+                                    </span>
+                                {% endraw %}
+                            </el-tree>
+                                </el-form>
+                             </div>
+
+                        </template>
+                        <template v-if="changeForm==4">
+                            <div style="width: 200px;margin-left: 68px">3
+                            </div>
+                        </template>
+                    </div>
+                    <div :style="changeForm?'margin-left: 300px':'margin-left: 68px'">
+                        {% block custom_content %}
+                        {% endblock %}
+                    </div>
+                </div>
+            </el-main>
+        </el-container>
+
+
+     <el-dialog
+            :title="title"
+            :visible.sync="knowledgeDialogVisible"
+            size="tiny"
+            width="80%"
+            id="editRoleDialog">
+            <div v-html="knowledge"></div>
+    </el-dialog>
+
+
+     <el-dialog :title="dataName" :visible.sync="dialogNoteVisible"   width="800px" >
+        <!-- <div style="background-image: url({{ url_for('static',filename='css/123.png') }})">  -->
+             <el-form>
+             <el-button type="primary" @click="saveNote" style="margin-left: 10%;margin-top: 10px;background-color: #35775b" size="small">保存</el-button><br>
+
+             <textarea  v-model="content" style="margin-left:10%;margin-top:20px"  rows="40" cols="80"></textarea>
+         </el-form>
+        <!-- </div> -->
+    </el-dialog>
+
+
+        <el-dialog title="提示" :visible.sync="delNoteVisible" width="30%">
+            <span>确定删除该记事本吗?</span>
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="delNoteVisible = false">取 消</el-button>
+                <el-button type="primary" @click="noteDialogComFirm">确 定</el-button>
+            </span>
+        </el-dialog>
+
+
+    </el-container>
+    <!-- 先引入 Vue -->
+    <script src="{{ url_for('static', filename='node_modules/vue/dist/vue.min.js')}}"></script>
+    <!-- 引入组件库 -->
+    <script src="{{ url_for('static', filename='node_modules/element-ui/lib/index.js')}}"></script>
+    <script src="{{ url_for('static', filename='node_modules/jquery/dist/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/base_vue.js') }}"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script type="text/javascript" src="//at.alicdn.com/t/font_1326397_gnk19o1haqg.js"></script>
+    <script>
+        let commonData = {
+            data: [],
+            defaultProps: {
+                children: 'children',
+                label: 'label'
+            },
+            knowledgeDialogVisible:false,
+            knowledge:'',
+            title:'',
+            sideBarMenus:sideBarMenus,
+            isCollapse:isCollapse,
+            icons:icons,
+            changeForm:'',
+            uploadText:"上传到服务器",
+            fileName:'',
+            uploadLoading:false,
+            nameAlter:'已上传数据',
+            tableDatas: [],
+            dialogTableVisible: false,
+            dataName:'',
+            fileList:[],
+            tableDataFeature:[],
+            colWidths:{'V1':162},
+            submitLoading:false,
+            fullLoading:'',
+            minWidth:{},
+            dialogFileName:false,
+            items:[],
+            basicCols:[],
+            numAlter:'',
+            activeNames: ['1'],
+            delDataName:'',
+            dialogVisible:false,
+            dataFields:[],
+            preProcessingList:[],
+            process_resultCols:[],
+            process_result:[],
+            diffParameter:'',
+            saveFileNameParameter:'',
+            dialogSaveVisible:false,
+            fileNamesLength:true,
+            note:'',
+            notes:[],
+            delNoteName:'',
+            content:'',
+            noteId:'',
+            dialogNoteVisible:false,
+            delNoteVisible:false,
+            noteShow:true,
+            showFlag:'1',
+        };
+
+       let commonComputed = {
+            finalFileName: function (){
+                    return {'fileName':this.fileName,'updateSignal':this.updateSignal};
+            }
+        };
+        let commonMethods = {
+
+<!-- 保存note  -->
+            saveNote: function () {
+                let $this = this;
+                $.ajax({
+                    url: '/import_description/save_note/',
+                    data: {'name': $this.dataName, 'content': $this.content},
+                    method: 'post',
+                    dataType: 'json',
+                    success: function (data) {
+                        if (data.status) {
+                            $this.dialogNoteVisible = false;
+                            vm.initNotes();
+                        } else {
+                            return false
+                        }
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        $this.loading = false;
+                        $this.$message.error('服务器有异常，请稍后重试');
+                    }
+                });
+            },
+
+<!-- 写笔记  -->
+            createNote: function () {
+                let $this = this;
+                var name = $this.note;
+                if (name === '') {
+                    $this.$message.error('记事本名称不能为空');
+                    return;
+                }
+                $.ajax({
+                    url: '/import_description/create_note/',
+                    data: {'name': name},
+                    method: 'post',
+                    dataType: 'json',
+                    success: function (data) {
+                        if (data.status) {
+                            vm.initNotes();
+                            $this.noteShow = true;
+                        } else {
+                            $this.$message.error('该note已存在！');
+                            return false;
+                        }
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        $this.loading = false;
+                        $this.$message.error('服务器有异常，请稍后重试');
+                    }
+                });
+            },
+
+<!-- 查找note -->
+            searchNote: function () {
+                let $this = this;
+                var name = $this.note;
+                $this.dataName = $this.note;
+                if (name == '') {
+                    $this.$message.error('记事本名称不能为空');
+                    return;
+                }
+                $.ajax({
+                    url: '/import_description/search_note/',
+                    data: {'name': name},
+                    method: 'post',
+                    dataType: 'json',
+                    success: function (data) {
+                        if (data.status) {
+                            $this.content = data.result;
+                            $this.dialogNoteVisible = true;
+                        } else {
+                            $this.$message.error('该note不存在！');
+                            return false;
+                        }
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        $this.loading = false;
+                        $this.$message.error('未找到该条记录');
+                    }
+                });
+            },
+
+
+<!-- 查看note  -->
+            handleNoteData: function (data) {
+                this.dialogNoteVisible = true;
+                let $this = this;
+                $this.dataName = data;
+
+                $.ajax({
+                    url: '/import_description/find_note/',
+                    data: {'name': $this.dataName},
+                    method: 'post',
+                    dataType: 'json',
+                    success: function (data) {
+                        if (data.status) {
+                            $this.content = data.result;
+                             $this.initNotes();
+                        } else {
+                            return false
+                        }
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        $this.loading = false;
+                        $this.$message.error('服务器有异常，请稍后重试');
+                    }
+                });
+            },
+
+<!-- 从数据库读取note展示  -->
+            handleDeleteNote: function (data) {
+                this.delNoteName = data;
+                this.delNoteVisible = true;
+            },
+            initNotes: function () {
+                $('#noteWhite').show();
+                $('#dataBaseBlack').show();
+                $('#knowledgeBaseBlack').show();
+                this.showFlag='1';
+                let $this = this;
+                $.ajax({
+                    url: '/import_description/note/init/',
+                    method: 'post',
+                    success: function (data) {
+                        if (data.status) {
+                            $this.notes = data.notes;
+                            $this.noteShow = true;
+                        } else {
+                            return false
+                        }
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        $this.$message.error('服务器有异常，请稍后重试');
+                        return false
+                    },
+                })
+            },
+
+<!-- 删除note  -->
+            noteDialogComFirm: function () {
+                this.delNoteVisible = false;
+                let $this = this;
+                $.ajax({
+                    url: '/import_description/delete_note/',
+                    data: {
+                        'del_note_name': $this.delNoteName,
+                    },
+                    method: 'post',
+                    dataType: 'json',
+                    success: function (data) {
+                        $this.$message.success('删除成功');
+                        $this.initNotes();
+                        if ($this.notes.length===1){
+                            $this.noteShow = false;
+                        }
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        $this.loading = false;
+                        $this.$message.error('服务器有异常，请稍后重试');
+                    }
+                });
+            },
+
+<!-- 获取知识点  -->
+            handleNodeClick(data, node) {
+                if (node.data.type == 1) {
+
+                } else {
+                    let $this = this;
+                    $this.title = node.data.label;
+
+                    $.ajax({
+                        url: '/import_description/analyse_markdown/',
+                        data: {'id': node.data.value},
+                        method: 'post',
+                        dataType: 'json',
+                        success: function (data) {
+                            $this.knowledge = marked(data.result);
+                            $this.knowledgeDialogVisible = true;
+                        },
+                        error: function (jqXHR, textStatus, errorThrown) {
+                            $this.loading = false;
+                            $this.$message.error('服务器有异常，请稍后重试');
+                        }
+                    });
+                }
+            },
+
+<!-- 获取知识库菜单  -->
+            getKnowledgeMenu() {
+                 let $this = this;
+                 $.ajax({
+                    url:'/import_description/get_knowledge_menu/',
+                    data:{'test':'1'},
+                    method:'post',
+                    dataType:'json',
+                    success:function (data) {
+                        $this.data = data.data_tree;
+                    },
+                    error:function (jqXHR, textStatus, errorThrown) {
+                        $this.loading=false;
+                        $this.$message.error('服务器有异常，请稍后重试');
+                    }
+                });
+             },
+
+
+            dialogSaveOpen:function(){
+                this.dialogSaveVisible = true;
+                this.saveFileNameParameter = '';
+            },
+
+<!-- 保存为新文件 -->
+            savePreprocess:function(){
+                this.dialogSaveVisible = false;
+                let $this = this;
+                $.ajax({
+                    url:'/import/data/saveNewData/',
+                    data:{
+                        'file_saveFileNameParameter':$this.saveFileNameParameter,
+                        'file_process_result':JSON.stringify($this.process_result),
+                    },
+                    method:'post',
+                    dataType:'json',
+                    success:function (data) {
+                        $this.$message.success('保存成功');
+                        $this.init();
+                    },
+                    error:function (jqXHR, textStatus, errorThrown) {
+                        $this.loading=false;
+                        $this.$message.error('服务器有异常，请稍后重试');
+                    }
+                });
+            },
+
+<!--查看数据后的计算-->
+            computePreprocess:function(){
+                let $this = this;
+                $.ajax({
+                    url: '/import/data/preprocess/',
+                    data: {
+                        'file_name': $this.dataName,
+                        'file_dataFields': $this.dataFields,
+                        'file_preProcessingList': $this.preProcessingList,
+                        'file_diffParameter': $this.diffParameter,
+                    },
+                    method: 'post',
+                    dataType: 'json',
+                    success: function (data) {
+                        $this.process_resultCols =data.process_resultCols;
+                        $this.process_result =data.process_result;
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        $this.loading = false;
+                        $this.$message.error('服务器有异常，请稍后重试');
+                    }
+                });
+            },
+
+
+            handleDeleteData:function(data){
+                this.delDataName = data;
+                this.dialogVisible = true;
+            },
+
+<!--删除文件-->
+            dialogComFirm:function() {
+                this.dialogVisible = false;
+                let $this = this;
+                $.ajax({
+                    url:'/import/data/deleteData/',
+                    data:{
+                        'file_delDataName':$this.delDataName,
+                    },
+                    method:'post',
+                    dataType:'json',
+                    success:function (data) {
+                        $this.$message.success('删除成功');
+                        $this.init();
+                        if ($this.fileNames.length===1){
+                               $this.fileNamesLength = false;
+                        }
+                    },
+                    error:function (jqXHR, textStatus, errorThrown) {
+                        $this.loading=false;
+                        $this.$message.error('服务器有异常，请稍后重试');
+                    }
+                });
+            },
+
+
+            handleChange:function(val) {
+                console.log(val);
+            },
+
+<!-- 展示文件内容并计算-->
+            handleData:function(data){
+                // 变量初始化
+                this.dataFields = [];
+                this.preProcessingList = [];
+                this.process_result = [];
+                this.dataName = data;
+                this.dialogTableVisible = true;
+                let $this = this;
+                $.ajax({
+                    url:'/import/data/basic_description/',
+                    data:{
+                        'file_name':$this.dataName,
+                    },
+                    method:'post',
+                    dataType:'json',
+                    success:function (data) {
+                        $this.numAlter="预览前10行(总行数："+data.row_num+"  总列数："+data.col_num+")";
+                        $this.cols = data.cols;
+                        $this.tableDatas = data.head_datas;
+                        // 计算宽度
+                        $this.calculateWidth($this.cols, $this.tableDatas);
+
+                        $this.basicCols =data.basic_cols;
+                        $this.tableDataFeature = data.basic_description;
+                        $this.calculateFeatureWidth($this.basicCurCols, $this.dataFeature);
+                    },
+                    error:function (jqXHR, textStatus, errorThrown) {
+                        $this.loading=false;
+                        $this.$message.error('服务器有异常，请稍后重试');
+                    }
+                });
+            },
+
+
+            handleCheckAllColChange:function(val){
+                this.dataFields = val ? this.cols : [];
+                this.isIndeterminate = false;
+            },
+
+
+            handleCheckedColCitiesChange:function(value){
+                let checkedCount = value.length;
+                this.checkAll = checkedCount === this.cols.length;
+                this.isIndeterminate = checkedCount > 0 && checkedCount < this.cols.length;
+            },
+
+
+            handleNotebook:function(){
+                this.changeForm=this.changeForm===1?'':1;
+                this.showFlag='1';
+                $('#handleNotebook').find("div").css('color', 'white');
+                $('#noteWhite').show();
+                $('#noteBlack').hide();
+                $('#dataBaseWhite').hide();
+                $('#dataBaseBlack').show();
+                $('#knowledgeBaseWhite').hide();
+                $('#knowledgeBaseBlack').show();
+
+                $('#handleNotebook').siblings().find("div").css('color', '#0d81c4');
+
+            },
+
+
+            handleDataBase:function(){
+                this.changeForm=this.changeForm===2?'':2;
+                this.showFlag='2';
+                $('#handleDataBase').find("div").css('color', 'white');
+                $('#dataBaseWhite').show();
+                $('#dataBaseBlack').hide();
+                $('#noteWhite').hide();
+                $('#noteBlack').show();
+                 $('#knowledgeBaseWhite').hide();
+                $('#knowledgeBaseBlack').show();
+
+                $('#handleDataBase').siblings().find("div").css('color', '#0d81c4');
+            },
+
+
+            handleKnowledgeBase:function(){
+                this.changeForm=this.changeForm===3?'':3;
+                this.showFlag='3';
+                 $('#handleKnowledgeBase').find("div").css('color', 'white');
+                $('#dataBaseWhite').hide();
+                $('#dataBaseBlack').show();
+                $('#noteWhite').hide();
+                $('#noteBlack').show();
+                $('#knowledgeBaseWhite').show();
+                $('#knowledgeBaseBlack').hide();
+
+                $('#handleKnowledgeBase').siblings().find("div").css('color', '#0d81c4');
+            },
+
+
+            handleUseMethod:function(){
+                this.changeForm=this.changeForm===4?'':4;
+
+                 $('#handleUseMethod').find("div").css('color', 'white');
+
+                $('#handleUseMethod').siblings().find("div").css('color', '#0d81c4');
+            },
+
+
+            submitUpload:function() {
+                this.uploadLoading = true;
+                this.$refs.upload.submit();
+            },
+
+
+            beforeUpload:function(file){
+                if(this.fileName){
+                    this.fullLoading = this.$loading({
+                        text: '处理中',
+                        spinner: 'el-icon-loading',
+                        background: 'rgba(0, 0, 0, 0.7)',
+                    });
+                    }
+                else{
+                    this.$message.error('请输入数据集名！');
+                    return false
+                }
+            },
+
+
+            handleRemove:function(file, fileList) {
+                this.fileList=[];
+            },
+
+ <!--文件上传到服务器 -->
+            handleOnProgress:function(event, file, fileList){
+                if(event.percent===100){
+                    this.uploadText = '正在解析';
+                    this.$message('文件已上传，正在解析');
+                }else{
+                    this.uploadText = '正在上传';
+                }
+            },
+
+
+            handleUploadError :function(response, file, fileList) {
+                this.uploadLoading=false;
+                this.uploadText = '上传到服务器';
+                this.fullLoading.close();
+                this.$message.error('解析失败，请稍后重试');
+            },
+
+
+            handleUploadSuccess :function(response, file, fileList) {
+                this.uploadLoading=false;
+                this.uploadText = '上传到服务器';
+                this.fullLoading.close();
+                this.$message.success('上传并解析成功');
+                this.init();
+                if (this.fileNames.length>0){
+                    this.fileNamesLength=true;
+                }
+            },
+
+
+            calculateWidth:function(cols, tableDatas) {
+                for(let index in cols){
+                    Vue.set(this.colWidths, cols[index], cols[index].length*14);
+                }
+                for(let index in tableDatas){
+                    for(let colIndex in cols){
+                        var curWidth = String(tableDatas[index][cols[colIndex]]).length*16;
+                        if(this.colWidths[cols[colIndex]]<curWidth){
+                            Vue.set(this.colWidths, cols[colIndex], curWidth);
+                        }
+                    }
+                }
+            },
+
+
+            calculateFeatureWidth:function(basicCols, tableDataFeature) {
+                for(let index in basicCols){
+                    Vue.set(this.basicColsWidths, basicCols[index], basicCols[index].length*10);
+                }
+                for(let index in tableDataFeature){
+                    for(let colIndex in basicCols){
+                        var curWidth = String(tableDataFeature[index][basicCols[colIndex]]).length*6;
+                        if(this.basicColsWidths[basicCols[colIndex]]<curWidth){
+                            Vue.set(this.basicColsWidths, basicCols[colIndex], curWidth);
+                        }
+                    }
+                }
+            },
+        };
+
+
+        $(function (){
+             vm.getKnowledgeMenu(1);
+             vm.initNotes();
+
+             $("#handleNotebook").hover(function(){
+                 $('#handleNotebook').find("div").css('color', 'white');
+                 $('#noteWhite').show();
+                 $('#noteBlack').hide();
+            },function(){
+                 if(vm.showFlag!='1'){
+                     $('#handleNotebook').find("div").css('color', '#0d81c4');
+                     $('#noteWhite').hide();
+                     $('#noteBlack').show();
+                 }
+            });
+
+            $("#handleDataBase").hover(function(){
+                 $('#handleDataBase').find("div").css('color', 'white');
+                 $('#dataBaseWhite').show();
+                 $('#dataBaseBlack').hide();
+            },function(){
+                 if(vm.showFlag!='2'){
+                     $('#handleDataBase').find("div").css('color', '#0d81c4');
+                     $('#dataBaseWhite').hide();
+                     $('#dataBaseBlack').show();
+                 }
+            });
+
+            $("#handleKnowledgeBase").hover(function(){
+                 $('#handleKnowledgeBase').find("div").css('color', 'white');
+                 $('#knowledgeBaseWhite').show();
+                 $('#knowledgeBaseBlack').hide();
+            },function(){
+                 if(vm.showFlag!='3'){
+                     $('#handleKnowledgeBase').find("div").css('color', '#0d81c4');
+                     $('#knowledgeBaseWhite').hide();
+                     $('#knowledgeBaseBlack').show();
+                 }
+            });
+		});
+   </script>
+
+    {% block custom_js %}{% endblock %}
+</body>
+</html>

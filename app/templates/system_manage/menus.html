@@ -1,0 +1,497 @@
+{% extends "base.html" %}
+{% block title %}菜单管理{% endblock %}
+{% block custom_css %}
+{% endblock %}
+{% block header_js %}
+{% endblock %}
+{% block custom_content %}
+    <el-card style="margin: 0">
+        <el-form size="mini">
+
+
+            <el-form-item label="名称:" size="mini">
+                <el-input v-model="name" placeholder="名称" style="width:220px"></el-input>
+                <el-cascader v-model="parentId" placeholder="父菜单" :options="menuOptionstrees" :props="{ checkStrictly: true }" clearable></el-cascader>
+{#                <el-select v-model="parentId" placeholder="父菜单" style="width:120px">#}
+{#                    <el-option v-for="menu in menuOptions" :key="menu._id" :label="menu.name" :value="menu._id" v-if="menu.type==1"></el-option>#}
+{#                </el-select>#}
+                <el-button type="primary" @click="searchBtnClick">查询</el-button>
+                <el-button type="primary" @click="openAddMenuForm">添加</el-button>
+            </el-form-item>
+
+
+        </el-form>
+        <el-form v-if="addFormFlag" :model="addForm" :rules="addFormRules" ref="addForm" size="mini" class="add-form">
+            <div class="inline-col">
+
+                <el-form-item prop="name">
+                    <el-input v-model="addForm.name" placeholder="名称" style="width:200px"></el-input>
+                </el-form-item>
+
+
+                <el-form-item prop="type">
+                    <el-select v-model="addForm.type" placeholder="请选择类型" style="width:120px">
+                        <el-option key="1" label="目录" value="1"></el-option>
+                        <el-option key="2" label="页面" value="2"></el-option>
+                    </el-select>
+                </el-form-item>
+
+
+                <el-form-item prop="url" v-if="addForm.type=='2'">
+                    <el-input v-model="addForm.url" placeholder="页面请求路径" style="width:300px"></el-input>
+                </el-form-item>
+
+
+                <el-form-item prop="parentId">
+                    <el-cascader v-model="addForm.parentId" :options="menuOptionstrees" :props="{ checkStrictly: true }" clearable></el-cascader>
+{#                    <el-select v-model="addForm.parentId" placeholder="请选择父菜单">#}
+{#                        <el-option v-for="menu in menuOptions" :key="menu._id" :label="menu.name" :value="menu._id" v-if="menu.parent_id==0 || menu._id==0"></el-option>#}
+{#                    </el-select>#}
+                </el-form-item>
+
+
+                <el-form-item prop="icon">
+                    <el-select v-model="addForm.icon" placeholder="请选择菜单图标">
+                        <el-option v-for="icon in icons" :key="icon" :value="icon"><i :class="icon"></i></el-option>
+                    </el-select>
+                </el-form-item>
+
+
+                <el-form-item prop="order" label="顺序">
+                    <el-input-number v-model="addForm.order" :min="1" label="顺序"></el-input-number>
+                </el-form-item>
+
+
+                <el-form-item>
+                    <el-button type="primary" @click="closeAddMenu">取消</el-button>
+                    <el-button type="primary" @click="addMenu">添加</el-button>
+                </el-form-item>
+
+
+            </div>
+        </el-form>
+    </el-card>
+    <el-card class="main-card">
+        {% raw %}
+        <el-form :model="editMenuForm" :rules="editMenuFormRules" ref="editMenuForm" size="mini">
+            <el-table :data="tableData" style="width:100%" size="mini" border>
+                <el-table-column label="名称">
+
+                    <template slot-scope="scope">
+                        <template v-if="editIndex!=scope.$index">
+                            {{ scope.row.name }}
+                        </template>
+                        <template v-if="editIndex==scope.$index">
+                            <el-form-item prop="name">
+                            <el-input v-model="editMenuForm.name" style="max-width: 200px"></el-input>
+                            </el-form-item>
+                        </template>
+                    </template>
+
+                </el-table-column>
+                <el-table-column label="类型" width="120px">
+                    <template slot-scope="scope">
+                        <template v-if="editIndex!=scope.$index">
+                            <template v-for="type in menuTypes" v-if="type.id==scope.row.type">{{ type.name }}</template>
+                        </template>
+                        <template v-if="editIndex==scope.$index">
+                            <el-form-item prop="type">
+                                <el-select v-model="editMenuForm.type" placeholder="请选择类型" size="mini">
+                                    <el-option key="1" label="目录" value="1"></el-option>
+                                    <el-option key="2" label="页面" value="2"></el-option>
+                                </el-select>
+                            </el-form-item>
+                        </template>
+                    </template>
+                </el-table-column>
+
+                <el-table-column label="父菜单">
+                    <template slot-scope="scope">
+                        <template v-if="editIndex!=scope.$index">
+                            <template v-for="menu in menuOptions" v-if="menu._id==scope.row.parent_id">{{ menu.name }}</template>
+                        </template>
+                        <template v-if="editIndex==scope.$index">
+                            <el-form-item prop="parentId">
+                                <el-cascader v-model="editMenuForm.parentId" placeholder="请选择父菜单" :options="menuOptionstrees" :props="{ checkStrictly: true }" clearable></el-cascader>
+
+                            </el-form-item>
+                        </template>
+                    </template>
+                </el-table-column>
+
+                <el-table-column label="图标">
+                    <template slot-scope="scope">
+                        <template v-if="scope.row.parent_id=='0'">
+                            <i :class="scope.row.icon" v-if="scope.row.icon"></i>
+                            <el-popover placement="right" width="160" trigger="click">
+                                  <p>
+                                      <el-radio-group v-model="editIcon">
+                                          <el-radio-button :label="icon" v-for="icon in icons" size="mini" style="margin:2px 8px;"><i :class="icon"></i></el-radio-button>
+                                      </el-radio-group>
+                                  </p>
+                                  <div style="text-align: right; margin: 0">
+                                    <el-button type="primary" size="mini" @click="updIcon(scope.row)">确定</el-button>
+                                  </div>
+                                  <el-button slot="reference" type="text" @click="editIcon=scope.row.icon" size="mini">修改</el-button>
+                            </el-popover>
+                        </template>
+                    </template>
+                </el-table-column>
+                <el-table-column label="请求路径" min-width="120px">
+                    <template slot-scope="scope">
+                        <template v-if="editIndex!=scope.$index">
+                            <template v-if="scope.row.type=='1'">无</template>
+                            <template v-if="scope.row.type=='2'">
+                                {{ scope.row.url }}
+                            </template>
+                        </template>
+                        <template v-if="editIndex==scope.$index">
+                            <el-form-item prop="url">
+                                <el-input v-model="editMenuForm.url" style="max-width: 300px"></el-input>
+                            </el-form-item>
+                        </template>
+                    </template>
+                </el-table-column>
+                <el-table-column label="顺序">
+                    <template slot-scope="scope">
+                        <template v-if="editIndex!=scope.$index">
+                            {{ scope.row.order }}
+                        </template>
+                        <template v-if="editIndex==scope.$index">
+                            <el-form-item>
+                                <el-input-number v-model="editMenuForm.order" :min="1"></el-input-number>
+                            </el-form-item>
+                        </template>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" min-width="120px">
+                    <template slot-scope="scope">
+                        <el-button size="mini" @click="handleSaveEdit(scope.row)" v-if="editIndex==scope.$index">保存</el-button>
+                        <el-button size="mini" @click="handleCloseEdit" v-if="editIndex==scope.$index">取消</el-button>
+                        <el-button size="mini" @click="handleOpenEdit(scope.$index, scope.row)" v-if="editIndex!=scope.$index">编辑</el-button>
+                        <el-button size="mini" type="danger" @click="handleDel(scope.$index, scope.row)">删除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+            {% endraw %}
+            <el-pagination background layout="total, prev, pager, next" :page-size="20" :total="total" @current-change="handleCurrentChange"></el-pagination>
+        </el-form>
+
+    </el-card>
+{% endblock %}
+{% block custom_js %}
+<script>
+
+        var addUrlValidator = function (rule, value, callback) {
+            if(vm.addForm.type==='2'){
+                if (value === '') {
+                    callback(new Error('请输入请求路径'));
+                } else {
+                    callback();
+                }
+
+            }else{
+                callback();
+            }
+        };
+        var editUrlValidator = function (rule, value, callback) {
+            if(vm.editMenuForm.type==='2'){
+                if (value === '') {
+                    callback(new Error('请输入请求路径'));
+                } else {
+                    callback();
+                }
+
+            }else{
+                callback();
+            }
+        };
+        var addIconValidator = function (rule, value, callback) {
+            if(vm.addForm.parentId==='0'){
+                if (value === '') {
+                    callback(new Error('请选择图标'));
+                } else {
+                    callback();
+                }
+
+            }else{
+                callback();
+            }
+        };
+
+        let newData = JSON.parse(JSON.stringify(commonData));
+        newData.sideBarMenus=sideBarMenus;
+        newData.isCollapse=isCollapse;
+        newData.icons=icons;
+        newData.defaultActive='1';
+        newData.breadcrumbs=['系统管理','菜单管理'];
+        newData.menuTypes=[{'id':1, 'name':'目录'},{'id':2, 'name':'页面'}];
+        newData.tableData=[];
+        newData.menuOptions=[];
+        newData.menuOptionstrees=[];
+        newData.name='';
+        newData.parentId=[];
+        newData.defaultSearchForm={name:'', parentId:[]};
+        newData.submitLoading=false;
+        newData.addFormFlag=false;
+        newData.addForm={name:'', type:'', parentId:[], url:'', icon:'', order:1};
+        newData.addFormRules={
+            name: [{ required: true, message: '请输入资源名称', trigger: ['blur','change'] }],
+            type: [{ required: true, message: '请输入菜单类型', trigger: ['blur','change'] }],
+            parentId: [{ required: true, message: '请选择父菜单', trigger: ['blur','change'] }],
+            url: [{ validator:addUrlValidator, trigger: ['blur','change'] }],
+            icon: [{ validator:addIconValidator, trigger: ['blur','change'] }],
+        };
+        newData.editIcon='';
+        newData.editIndex=2000;
+        newData.editMenuForm={_id:'', name:'', type:'', parentId:[], url:'', icon:'', order:1};
+        newData.editMenuFormRules={
+            name: [{ required: true, message: '请输入资源名称', trigger: ['blur','change'] }],
+            type: [{ required: true, message: '请输入菜单类型', trigger: ['blur','change'] }],
+            parentId: [{ required: true, message: '请选择父菜单', trigger: ['blur','change'] }],
+            url: [{ validator:editUrlValidator, trigger: ['blur','change'] }],
+        };
+        newData.total=0;
+
+        let newMethods = Object.assign({},commonMethods);
+        newMethods.searchBtnClick=function(){
+				this.defaultSearchForm = {'name':this.name, 'parentId':this.parentId};
+				this.searchMenus(1);
+			};
+			newMethods.searchMenus=function(pageNum){
+				var $this = this;
+
+<!-- 查询所有菜单 -->
+				$.ajax({
+					url:'/system/menu/menus/',
+					data:{
+						'name':$this.defaultSearchForm.name,
+						'parentId':$this.defaultSearchForm.parentId,
+						'pageNum':pageNum
+					},
+					method:'post',
+					success:function (data) {
+						if(data.status){
+							$this.tableData = data.data;
+							$this.total = data.total;
+                        }else{
+                            handleError(data, $this);
+                        }
+					},
+					error:function (jqXHR, textStatus, errorThrown) {
+						$this.$message.error('服务器有异常，请稍后重试');
+					}
+				});
+			};
+			newMethods.handleCurrentChange=function(val){
+				this.searchMenus(val);
+			};
+			newMethods.openAddMenuForm=function(){
+				this.addForm={name:'',url:'', type:'', parentId:[], icon:'', order:1};
+				this.addFormFlag = true;
+			};
+			newMethods.closeAddMenu=function(){
+				this.addForm={name:'',url:'',type:'', parentId:[], icon:'', order:1};
+				this.addFormFlag=false;
+			};
+			newMethods.addMenu=function(){
+				var $this = this;
+				this.$refs['addForm'].validate(function(valid){
+					if (valid) {
+
+<!-- 添加菜单 -->
+					    $.ajax({
+							url:'/system/menu/add/',
+							data:{
+								'name':$this.addForm.name,
+								'type':$this.addForm.type,
+								'parentId':$this.addForm.parentId,
+								'url':$this.addForm.url,
+								'icon':$this.addForm.icon,
+								'order':$this.addForm.order,
+							},
+							method:'post',
+							success:function (data) {
+								if(data.status){
+                                    $this.$message.success('添加成功');
+									$this.findMenuOptions();
+									$this.searchMenus(1);
+								}else{
+									handleError(data, $this);
+								}
+							},
+							error:function (jqXHR, textStatus, errorThrown) {
+								$this.$message.error('服务器有异常，请稍后重试');
+							}
+						});
+					}else{
+						return false;
+					}
+				});
+			};
+			newMethods.handleOpenEdit=function(index, row){
+				this.editMenuForm = {_id:row._id,name:row.name,url:row.url,
+					type:row.type, parentId:row.parent_id, icon:row.icon, order:row.order};
+				this.editIndex = index;
+			};
+			newMethods.handleCloseEdit=function(){
+				this.editMenuForm = {_id:'',name:'',url:'',type:'', parentId:[], icon:'', order:1};
+				this.editIndex = 2000;
+			};
+			newMethods.handleDel=function(index,row){
+				var $this = this;
+				this.$confirm('此操作将永久删除'+row.url+'菜单, 是否继续?', '提示', {
+					confirmButtonText: '确定',
+					cancelButtonText: '取消',
+					type: 'warning'
+				}).then(function(){
+
+<!-- 删除菜单 -->
+				    $.ajax({
+						url:'/system/menu/del/',
+						data:{
+							'_id':row._id,
+						},
+						method:'post',
+						success:function (data) {
+							if(data['status']){
+                                $this.tableData.splice(index, 1);
+                                $this.$message.success('删除成功');
+                                $this.findMenuOptions();
+                                $this.searchMenus(1);
+                            }else{
+                                handleError(data, $this);
+                            }
+						},
+						error:function (jqXHR, textStatus, errorThrown) {
+							$this.$message.error('服务器有异常，请稍后重试');
+						}
+					});
+
+				}).catch(function(){
+					this.$message({
+						type: 'info',
+						message: '已取消删除'
+					});
+				});
+			};
+			newMethods.handleSaveEdit=function(row){
+				var $this = this;
+				if(this.editMenuForm.name===row.name
+					&& this.editMenuForm.type===row.type
+					&& this.editMenuForm.parentId===row.parent_id
+					&& this.editMenuForm.order===row.order
+					&& this.editMenuForm.icon===row.icon
+					&& this.editMenuForm.url===row.url){
+					$this.editIndex=2000;
+					$this.$message.success('修改成功');
+				}else{
+					this.$refs['editMenuForm'].validate(function(valid){
+						if (valid) {
+
+<!-- 修改菜单 -->
+						    $.ajax({
+								url:'/system/menu/edit/',
+								data:{
+									'_id':$this.editMenuForm._id,
+									'name':$this.editMenuForm.name,
+									'type':$this.editMenuForm.type,
+									'parentId':$this.editMenuForm.parentId,
+									'url':$this.editMenuForm.url,
+									'icon':$this.editMenuForm.icon,
+									'order':$this.editMenuForm.order,
+								},
+								method:'post',
+								success:function (data) {
+									if(data.status){
+                                        row.name=$this.editMenuForm.name;
+                                        row.type=$this.editMenuForm.type;
+                                        row.parent_id=$this.editMenuForm.parentId;
+                                        row.url=$this.editMenuForm.url;
+                                        row.icon=$this.editMenuForm.icon;
+                                        row.order=$this.editMenuForm.order;
+                                        $this.editIndex=2000;
+                                        $this.$message.success('修改成功');
+                                        $this.findMenuOptions();
+                                    }else{
+            							handleError(data, $this);
+                                    }
+								},
+								error:function (jqXHR, textStatus, errorThrown) {
+									$this.$message.error('服务器有异常，请稍后重试');
+								}
+							});
+						}else{
+							return false;
+						}
+					});
+				}
+			};
+			newMethods.getMenuLabel=function(_id){
+				for(let menuIndex in this.menuOptions){
+					let menu = this.menuOptions[menuIndex];
+					if(menu['_id']===id){
+						return menu['name'];
+					}
+				}
+			};
+			newMethods.findMenuOptions=function(){
+				let $this = this;
+
+<!-- 获取所有菜单选项 -->
+				$.ajax({
+					url:'/system/menu/options/',
+					data:{},
+					method:'post',
+					success:function (data) {
+
+						if(data['status']){
+							$this.menuOptions = data.data;
+							$this.menuOptionstrees = data.data_tree;
+						}else {
+							handleError(data, $this);
+                        }
+					},
+					error:function (jqXHR, textStatus, errorThrown) {
+						$this.$message.error('服务器有异常，请稍后重试');
+					}
+				});
+			};
+			newMethods.updIcon=function(row){
+				let $this = this;
+				row.icon = $this.editIcon;
+				$this.editIndex = 2000;
+
+<!-- 修改菜单图标 -->
+				$.ajax({
+					url:'/system/menu/icon/upd/',
+					data:{'_id':row._id, 'icon': row.icon},
+					method:'post',
+					success:function (data) {
+                        if(data.status){
+                        	$this.$message.success('更新成功');
+                        }else{
+                        	handleError(data,$this);
+                        }
+					},
+					error:function (jqXHR, textStatus, errorThrown) {
+						$this.$message.error('服务器有异常，请稍后重试');
+					}
+				});
+			};
+
+	var vm = new Vue({
+		el: '#app',
+		data: function () {
+			return newData;
+		},
+		methods: newMethods
+	});
+	$(function () {
+		vm.findMenuOptions();
+		vm.initLocalUserMenus(vm);
+		vm.initUserMenus(vm);
+		vm.searchMenus(1);
+	});
+</script>
+{% endblock %}

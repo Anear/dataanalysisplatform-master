@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+{% block title %}用户管理{% endblock %}
+{% block custom_css %}
+{% endblock %}
+{% block header_js %}
+{% endblock %}
+{% block custom_content %}
+    <el-card style="margin: 0">
+        <el-form size="mini">
+            <el-form-item label="用户名:" size="mini">
+                <el-input v-model="username" placeholder="用户名"  style="width:240px"></el-input>
+                <el-button type="primary" @click="searchBtnClick">查询</el-button>
+                <el-button type="primary" @click="openAddUserForm">添加</el-button>
+            </el-form-item>
+        </el-form>
+        <el-form v-if="addFormFlag" :model="addForm" :rules="addFormRules" ref="addForm" size="mini" class="add-form">
+            <div class="inline-col">
+                <el-form-item prop="username" size="mini">
+                    <el-input v-model="addForm.username" placeholder="用户名" style="width:200px"></el-input>
+                </el-form-item>
+                <el-form-item prop="password" size="mini">
+                    <el-input v-model="addForm.password" placeholder="密码" style="width:300px"></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" @click="closeAddUser">取消</el-button>
+                    <el-button type="primary" @click="addUser">添加</el-button>
+                </el-form-item>
+            </div>
+        </el-form>
+    </el-card>
+    <el-card class="main-card">
+        {% raw %}
+        <el-form :model="editUserForm" :rules="editUserFormRules" ref="editUserForm" size="mini">
+            <el-table :data="tableData" style="width:100%" size="mini" border>
+                <el-table-column label="用户名" width="120px">
+                    <template slot-scope="scope">
+                        <template v-if="editIndex!=scope.$index">
+                            {{ scope.row.username }}
+                        </template>
+                        <template v-if="editIndex==scope.$index">
+                            <el-form-item prop="username">
+                            <el-input v-model="editUserForm.username" style="max-width: 200px"></el-input>
+                            </el-form-item>
+                        </template>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="roles" label="角色">
+                    <template slot-scope="scope">
+                        <template v-for="role in allRoles">
+                            <el-tag type="primary" size="small" v-for="item in scope.row.roles" disable-transitions v-if="role._id==item">{{role.name}}</el-tag>
+                        </template>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="status" label="状态">
+                    <template slot-scope="scope">
+                        <el-select v-model="scope.row.status" placeholder="请选择状态" style="width:88px" size="mini" @change="statusChange(scope.row._id, scope.row.status)">
+                            <el-option key="0" value="0" label="停用">停用</el-option>
+                            <el-option key="1" value="1" label="正常">正常</el-option>
+                        </el-select>
+                    </template>
+                </el-table-column>
+
+                <el-table-column label="操作"  min-width="120px">
+                    <template slot-scope="scope">
+                        <el-button size="mini" @click="handleSaveEdit(scope.row)" v-if="editIndex==scope.$index">保存</el-button>
+                        <el-button size="mini" @click="handleCloseEdit" v-if="editIndex==scope.$index">取消</el-button>
+                        <el-button size="mini" type="danger" @click="handleDel(scope.$index, scope.row)">删除</el-button>
+                        <el-button size="mini" @click="handleEditUserRoles(scope.$index, scope.row)">编辑用户角色</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+            {% endraw %}
+            <el-pagination background layout="total, prev, pager, next" :page-size="20" :total="total" @current-change="handleCurrentChange"></el-pagination>
+        </el-form>
+    </el-card>
+    <el-dialog title="编辑用户的角色" :visible.sync="dialogUserRoleVisible">
+        <el-checkbox :indeterminate="isIndeterminate" v-model="checkAll" @change="handleCheckAllChange">全选</el-checkbox>
+        <el-checkbox-group v-model="roleDefaultChecked" @change="handleCheckedRolesChange">
+            {% raw %}
+            <el-checkbox :label="role._id" v-for="role in allRoles">{{ role.name }}</el-checkbox>
+            {% endraw %}
+        </el-checkbox-group>
+        <div slot="footer" class="dialog-footer">
+        <el-button @click="dialogUserRoleVisible = false" size="mini">取 消</el-button>
+        <el-button type="primary" @click="submitUserRoles" size="mini">确 定</el-button>
+        </div>
+    </el-dialog>
+{% endblock %}
+{% block custom_js %}
+    <script>
+
+        let newData = JSON.parse(JSON.stringify(commonData));
+        newData.defaultActive='1';
+        newData.breadcrumbs=['系统管理','用户管理'];
+        newData.allRoles=[];
+        newData.dialogUserRoleVisible=false;
+        newData.tableData=[];
+        newData.username='';
+        newData.defaultSearchForm={username:''};
+        newData.addFormFlag=false;
+        newData.addForm={username:'',password:''};
+        newData.addFormRules={
+            username: [{ required: true, message: '请输入用户名', trigger: ['blur','change'] }],
+            password: [{ required: true, message: '请输入密码', trigger: ['blur','change'] }],
+        };
+        newData.editIndex=2000;
+        newData.editUserForm={_id:'',username:'',password:''};
+        newData.editUserFormRules={
+            username: [{ required: true, message: '请输入用户名', trigger: ['blur','change'] }],
+            password: [{ required: true, message: '请输入密码', trigger: ['blur','change']}],
+        };
+        newData.total=0;
+        newData.userRoleId='';
+        newData.userRoleIndex='';
+        newData.roleDefaultChecked=[];
+        newData.isIndeterminate= true;
+        newData.checkAll= false;
+
+        let newMethods = Object.assign({},commonMethods);
+        newMethods.searchBtnClick=function(){
+            this.defaultSearchForm = {'username':this.username};
+            this.searchUsers(1);
+        };
+        newMethods.searchUsers=function(pageNum){
+            let $this = this;
+
+<!-- 查看用戶 -->
+            $.ajax({
+                url:'/system/user/users/',
+                data:{
+                    'username':$this.defaultSearchForm.username,
+                    'pageNum':pageNum
+                },
+                method:'post',
+                success:function (data) {
+                    if(data.status){
+                        $this.tableData = data.data;
+                        $this.total = data.total;
+                    }else{
+                        handleError(data, $this);
+                    }
+                },
+                error:function (jqXHR, textStatus, errorThrown) {
+                    $this.$message.error('服务器有异常，请稍后重试');
+                }
+            });
+        };
+        newMethods.handleCurrentChange=function(val){
+            this.searchUsers(val);
+        };
+        newMethods.openAddUserForm=function(){
+            this.addForm={username:'',password:''};
+            this.addFormFlag = true;
+        };
+        newMethods.closeAddUser=function(){
+            this.addForm={username:'',password:''};
+            this.addFormFlag=false;
+        };
+        newMethods.addUser=function(){
+            let $this = this;
+            this.$refs['addForm'].validate(function(valid){
+                if (valid) {
+
+<!-- 添加用戶 -->
+                    $.ajax({
+                            url:'/system/user/add/',
+                            data:{
+                                'username':$this.addForm.username,
+                                'password':$this.addForm.password,
+                            },
+                            method:'post',
+                            success:function (data) {
+                                if(data.status){
+                                    $this.searchUsers(1);
+                                    $this.$message.success('添加成功');
+                                }else {
+                                    handleError(data, $this);
+                                }
+                            },
+                            error:function (jqXHR, textStatus, errorThrown) {
+                                $this.$message.error('服务器有异常，请稍后重试');
+                            }
+                        });
+
+                }else{
+                    return false;
+                }
+            });
+        };
+        newMethods.handleOpenEdit=function(index, row){
+            this.editUserForm = {_id:row._id,username:row.username,password:row.password};
+            this.editIndex = index;
+        };
+        newMethods.handleCloseEdit=function(){
+            this.editUserForm = {_id:'',username:'',password:''};
+            this.editIndex = 2000;
+        };
+        newMethods.handleDel=function(index,row){
+            let $this = this;
+            this.$confirm('此操作将永久删除'+row.key+'用户, 是否继续?', '提示', {
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                type: 'warning'
+            }).then(function(){
+
+<!-- 删除用户 -->
+                $.ajax({
+                    url:'/system/user/del/',
+                    data:{
+                        '_id':row._id,
+                    },
+                    method:'post',
+                    success:function (data) {
+                        if(data.status){
+                            $this.tableData.splice(index, 1);
+                            $this.$message.success('删除成功');
+                            $this.searchUsers(1);
+                        }else{
+                            handleError(data, $this);
+                        }
+                    },
+                    error:function (jqXHR, textStatus, errorThrown) {
+                        $this.$message.error('服务器有异常，请稍后重试');
+                    }
+                });
+            }).catch(function(){
+                this.$message({
+                type: 'info',
+                message: '已取消删除'
+                });
+            });
+        };
+        newMethods.handleSaveEdit=function(row){
+            let $this = this;
+            if(this.editUserForm.name===row.name && this.editUserForm.key===row.key){
+                $this.editIndex=2000;
+                $this.$message.success('修改成功');
+            }else{
+                this.$refs['editUserForm'].validate(function(valid){
+                    if (valid) {
+
+<!-- 编辑用户 -->
+                        $.ajax({
+                            url:'/system/user/edit/',
+                            data:{
+                                '_id':$this.editUserForm._id,
+                                'username':$this.editUserForm.username,
+                                'password':$this.editUserForm.password,
+                            },
+                            method:'post',
+                            success:function (data) {
+                                if(data.status){
+                                    row.username=$this.editUserForm.username;
+                                    row.password=$this.editUserForm.password;
+                                    $this.editIndex=2000;
+                                    $this.$message.success('修改成功');
+                                }else{
+                                    handleError(data, $this);
+                                }
+                            },
+                            error:function (jqXHR, textStatus, errorThrown) {
+                                $this.$message.error('服务器有异常，请稍后重试');
+                            }
+                        });
+                    }else{
+                        return false;
+                    }
+                });
+            }
+        };
+        newMethods.handleEditUserRoles=function(index, row){
+            this.userRoleId = row._id;
+            this.userRoleIndex = index;
+            if(row.roles){
+                this.roleDefaultChecked = row.roles;
+            }else{
+                this.roleDefaultChecked = [];
+            }
+
+            this.dialogUserRoleVisible = true;
+        };
+        newMethods.submitUserRoles=function () {
+            let $this = this;
+
+<!-- 编辑角色 -->
+            $.ajax({
+                url:'/system/user/role/edit/',
+                data:{
+                    '_id':$this.userRoleId,
+                    'roles':$this.roleDefaultChecked,
+                },
+                method:'post',
+                success:function (data) {
+                    if(data.status){
+                        $this.tableData[$this.userRoleIndex]['roles'] = $this.roleDefaultChecked;
+                        $this.dialogUserRoleVisible = false;
+                        $this.$message.success('修改成功');
+                    }else{
+                        handleError(data, $this);
+                    }
+                },
+                error:function (jqXHR, textStatus, errorThrown) {
+                    $this.$message.error('服务器有异常，请稍后重试');
+                }
+            });
+        };
+        newMethods.handleCheckAllChange=function(val) {
+            let allRoleIds = [];
+            for(let role of this.allRoles){
+                allRoleIds.push(role['_id']);
+            }
+            this.roleDefaultChecked = val ? allRoleIds : [];
+            this.isIndeterminate = false;
+        };
+        newMethods.handleCheckedRolesChange=function(value) {
+            let checkedCount = value.length;
+            this.checkAll = checkedCount === this.allRoles.length;
+            this.isIndeterminate = checkedCount > 0 && checkedCount < this.allRoles.length;
+        };
+        newMethods.statusChange=function (id, status) {
+            let $this = this;
+
+<!-- 編輯用戶狀態 -->
+            $.ajax({
+                url:'/system/user/status/edit/',
+                data:{
+                    '_id':id,
+                    'status':status,
+                },
+                method:'post',
+                success:function (data) {
+                    if(data.status){
+                        $this.$message.success('修改成功');
+                    }else{
+                        handleError(data, $this);
+                    }
+                },
+                error:function (jqXHR, textStatus, errorThrown) {
+                    $this.$message.error('服务器有异常，请稍后重试');
+                }
+            });
+        };
+
+        var vm = new Vue({
+            el: '#app',
+            data: function () {
+                return newData;
+            },
+            methods: newMethods
+        });
+        $(function () {
+            vm.searchUsers(1);
+            vm.initLocalUserMenus(vm);
+            vm.initUserMenus(vm);
+            vm.initAllRoles(vm);
+		});
+    </script>
+{% endblock %}

@@ -1,0 +1,20 @@
+
+def remove_k(list_n, index_of_k, m):
+    for i in range(1, m):
+        index_of_k = index_of_k + 1
+        if index_of_k > len(list_n) - 1:
+            index_of_k = index_of_k - len(list_n)
+    list_n.pop(index_of_k)
+    if len(list_n) > 1:
+        remove_k(list_n, index_of_k, m)
+    if len(list_n) == 1:
+        return list_n[0]
+
+
+n = 10
+k = 5
+m = 3
+list_n = list(range(n))
+index_of_k = list_n.index(k)
+result = remove_k(list_n, index_of_k, m)
+print(result)

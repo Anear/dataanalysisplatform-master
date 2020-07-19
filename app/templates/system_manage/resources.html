@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block title %}资源管理{% endblock %}
+{% block custom_css %}
+{% endblock %}
+{% block header_js %}
+{% endblock %}
+{% block custom_content %}
+    <el-card style="margin: 0">
+        <el-form size="mini">
+            <el-form-item label="名称:" size="mini">
+                <el-input v-model="name" placeholder="名称"  style="width:240px"></el-input>
+                <el-button type="primary" @click="searchResources(1)">查询</el-button>
+                <el-button type="primary" @click="openAddResForm">添加</el-button>
+            </el-form-item>
+        </el-form>
+        <el-form v-if="addFormFlag" :model="addForm" :rules="addFormRules" ref="addForm" size="mini" class="add-form">
+            <div class="inline-col">
+                <el-form-item prop="name" size="mini">
+                    <el-input v-model="name" placeholder="名称" style="width:200px"></el-input>
+                </el-form-item>
+                <el-form-item prop="url" size="mini">
+                    <el-input v-model="url" placeholder="地址" style="width:300px"></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" @click="closeAddResource">取消</el-button>
+                    <el-button type="primary" @click="addResource">添加</el-button>
+                </el-form-item>
+            </div>
+        </el-form>
+    </el-card>
+    <el-card class="main-card">
+        {% raw %}
+        <el-form :model="editResourceForm" :rules="editResourceFormRules" ref="editResourceForm" size="mini">
+            <el-table :data="tableData" style="width:100%" size="mini" border>
+                <el-table-column label="名称">
+                    <template slot-scope="scope">
+                        <template v-if="editIndex!=scope.$index">
+                            {{ scope.row.name }}
+                        </template>
+                        <template v-if="editIndex==scope.$index">
+                            <el-form-item prop="name">
+                            <el-input v-model="editResourceForm.name" style="max-width: 200px"></el-input>
+                            </el-form-item>
+                        </template>
+
+                    </template>
+                </el-table-column>
+                <el-table-column label="地址">
+                    <template slot-scope="scope">
+                        <template v-if="editIndex!=scope.$index">
+                            {{ scope.row.url }}
+                        </template>
+                        <template v-if="editIndex==scope.$index">
+                            <el-form-item prop="url">
+                                <el-input v-model="editResourceForm.url" style="max-width: 300px"></el-input>
+                            </el-form-item>
+                        </template>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作">
+                    <template slot-scope="scope">
+                        <el-button size="mini" @click="handleSaveEdit(scope.row)" v-if="editIndex==scope.$index">保存</el-button>
+                        <el-button size="mini" @click="handleCloseEdit" v-if="editIndex==scope.$index">取消</el-button>
+                        <el-button size="mini" @click="handleOpenEdit(scope.$index, scope.row)" v-if="editIndex!=scope.$index">编辑</el-button>
+                        <el-button size="mini" type="danger" @click="handleDel(scope.$index, scope.row)">删除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+            {% endraw %}
+            <el-pagination background layout="total, prev, pager, next" :total="total" :page-size="20" @current-change="handleCurrentChange"></el-pagination>
+        </el-form>
+
+    </el-card>
+{% endblock %}
+{% block custom_js %}
+<script>
+
+    let newData = JSON.parse(JSON.stringify(commonData));
+    newData.defaultActive='1';
+    newData.breadcrumbs=['系统管理','资源管理'];
+    newData.tableData=[];
+    newData.name='';
+    newData.submitLoading=false;
+    newData.addFormFlag=false;
+    newData.addForm={name:'',url:''};
+    newData.addFormRules={
+        name: [{ required: true, message: '请输入资源名称', trigger: ['blur','change'] }],
+        url: [{ required: true, message: '请输入资源地址', trigger: ['blur','change'] }],
+    };
+    newData.editIndex=2000;
+    newData.editResourceForm={_id:'',name:'',url:''};
+    newData.editResourceFormRules={
+        name: [{ required: true, message: '请输入资源名称', trigger: ['blur','change'] }],
+        url: [{ required: true, message: '请输入资源地址', trigger: ['blur','change']}],
+    };
+    newData.total=0;
+
+    let newMethods = Object.assign({},commonMethods);
+    newMethods.searchResources=function(pageNum){
+        let $this = this;
+
+<!-- 分页查询资源 -->
+        $.ajax({
+            url:'/system/resource/resources/',
+            data:{
+                'name':$this.name,
+                'pageNum':pageNum
+            },
+            method:'post',
+            success:function (data) {
+                if(data.status){
+                    $this.tableData = data.data;
+                    $this.total = data.total;
+                }else {
+                    handleError(data, $this);
+                }
+            },
+            error:function (jqXHR, textStatus, errorThrown) {
+                $this.$message.error('服务器有异常，请稍后重试');
+            }
+        });
+    };
+    newMethods.handleCurrentChange=function(val){
+        this.searchResources(val);
+    };
+    newMethods.openAddResForm=function(){
+        this.addForm={name:'',url:''};
+        this.addFormFlag = true;
+    };
+    newMethods.closeAddResource=function(){
+        this.addForm={name:'',url:''};
+        this.addFormFlag=false;
+    };
+    newMethods.addResource=function(){
+        let $this = this;
+        this.$refs['addForm'].validate(function(valid){
+            if (valid) {
+
+<!-- 添加资源 -->
+                $.ajax({
+                    url:'/system/resource/add/',
+                    data:{
+                        'name':$this.addForm.name,
+                        'url':$this.addForm.url,
+                    },
+                    method:'post',
+                    success:function (data) {
+                        if(data.status){
+                            $this.$message.success('添加成功');
+                            $this.searchResources(1);
+                        }else{
+                            handleError(data, $this);
+                        }
+                    },
+                    error:function (jqXHR, textStatus, errorThrown) {
+                        $this.$message.error('服务器有异常，请稍后重试');
+                    }
+                });
+
+            }else{
+                return false;
+            }
+        });
+    };
+    newMethods.handleOpenEdit=function(index, row){
+        this.editResourceForm = {_id:row._id,name:row.name,url:row.url};
+        this.editIndex = index;
+    };
+    newMethods.handleCloseEdit=function(){
+        this.editResourceForm = {_id:'',name:'',url:''};
+        this.editIndex = 2000;
+    };
+    newMethods.handleDel=function(index,row){
+        let $this = this;
+        this.$confirm('此操作将永久删除'+row.url+'资源, 是否继续?', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+        }).then(function(){
+
+<!-- 删除资源 -->
+            $.ajax({
+                url:'/system/resource/del/',
+                data:{
+                    '_id':row._id,
+                },
+                method:'post',
+                success:function (data) {
+                    if(data.status){
+                        $this.tableData.splice(index, 1);
+                        $this.$message.success('删除成功');
+                    }else {
+                        handleError(data, $this);
+                    }
+                },
+                error:function (jqXHR, textStatus, errorThrown) {
+                    $this.$message.error('服务器有异常，请稍后重试');
+                }
+            });
+
+        }).catch(function(){
+            this.$message({
+            type: 'info',
+            message: '已取消删除'
+            });
+        });
+    };
+    newMethods.handleSaveEdit=function(row){
+        var $this = this;
+        if(this.editResourceForm.name===row.name && this.editResourceForm.url===row.url){
+            $this.editIndex=2000;
+            $this.$message.success('修改成功');
+        }else{
+            this.$refs['editResourceForm'].validate(function(valid){
+                if (valid) {
+
+<!-- 修改资源 -->
+                    $.ajax({
+                        url:'/system/resource/edit/',
+                        data:{
+                            '_id':$this.editResourceForm._id,
+                            'name':$this.editResourceForm.name,
+                            'url':$this.editResourceForm.url,
+                        },
+                        method:'post',
+                        success:function (data) {
+                            if(data.status){
+                                row.name=$this.editResourceForm.name;
+                                row.url=$this.editResourceForm.url;
+                                $this.editIndex=2000;
+                                $this.$message.success('修改成功');
+                            }else {
+                                handleError(data, $this);
+                            }
+                        },
+                        error:function (jqXHR, textStatus, errorThrown) {
+                            $this.$message.error('服务器有异常，请稍后重试');
+                        }
+                    });
+                }else{
+                    return false;
+                }
+            });
+        }
+    };
+
+    var vm = new Vue({
+        el: '#app',
+        data: function () {
+            return newData;
+        },
+        methods: newMethods
+    });
+    $(function () {
+        vm.searchResources(1);
+        vm.initLocalUserMenus(vm);
+        vm.initUserMenus(vm);
+    })
+</script>
+{% endblock %}

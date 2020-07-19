@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>登录</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/element-ui/lib/theme-chalk/index.css')}}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='node_modules/font-awesome5/css/fontawesome-all.min.css')}}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.min.css')}}">
+    <style>
+        .login-container{
+            height: 100%;
+        }
+        .user-login{
+            position: relative;
+            left: 0;
+            top: 0;
+            padding: 110px 0;
+            min-height: 100%;
+            box-sizing: border-box;
+        }
+        .user-login-header{
+            text-align: center;
+            padding: 20px;
+        }
+        .user-login-header h2{
+            margin-bottom: 10px;
+            font-weight: 300;
+            font-size: 30px;
+            color: #000;
+        }
+        .user-login-header p{
+            font-weight: 300;
+            color: #999;
+        }
+        .login-box{
+            width: 375px;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+        .login-form{
+            padding: 20px;
+        }
+        .el-input__prefix {
+            padding: 0 3px;
+        }
+        .login-footer{
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            line-height: 30px;
+            padding: 20px;
+            text-align: center;
+            box-sizing: border-box;
+            color: rgba(0,0,0,.5);
+        }
+    </style>
+</head>
+<body>
+<div class="login-container" id="app" v-cloak>
+    <div class=""></div>
+    <div class="user-login">
+
+
+        <div class="login-box">
+            <div class="user-login-header">
+              <h2>DECISIONPLAN</h2>
+              <p>decision 决策分析系统</p>
+            </div>
+
+
+            <!——登入用的表单——>
+            <el-form id="loginForm" auto-complete="off" :model="user" :rules="loginRules"
+                     ref="loginForm" label-position="left" label-width="0px" class="card-box login-form" method="post">
+                <el-form-item prop="username">
+                    <el-input name="username" type="text" v-model="user.username" auto-complete="off" placeholder="用户名" autofocus="true">
+                        <i slot="prefix" class="fa fa-user"></i>
+                    </el-input>
+                </el-form-item>
+                <el-form-item prop="password">
+                    <el-input name="password" type="password" v-model="user.password" auto-complete="off" placeholder="密码" @keyup.enter.native="submitForm('loginForm')">
+                        <i slot="prefix" class="fa fa-lock"></i>
+                    </el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" style="width:100%;" @click="submitForm('loginForm')" :loading="loading" :disabled="loginDisabled">
+                        登录
+                    </el-button>
+                </el-form-item>
+            </el-form>
+
+
+        </div>
+        <div class="login-footer">
+                <p>© 2018 经数科技有限公司</p>
+        </div>
+
+
+    </div>
+</div>
+    <!-- 先引入 Vue -->
+    <script src="{{ url_for('static', filename='node_modules/vue/dist/vue.min.js')}}"></script>
+    <!-- 引入组件库 -->
+    <script src="{{ url_for('static', filename='node_modules/element-ui/lib/index.js')}}"></script>
+    <script src="{{ url_for('static', filename='node_modules/jquery/dist/jquery.min.js') }}"></script>
+    {% block custom_js %}{% endblock %}
+
+
+<script>
+    function getRequestParams() {
+		let url = location.search; //获取url中"?"符后的字串
+		let theRequest = {};
+
+		if (url.indexOf("?") !== -1) {
+			let str = url.substr(1);
+			strs = str.split("&");
+            for(let i = 0; i < strs.length; i ++) {
+                theRequest[strs[i].split("=")[0]] = unescape(strs[i].split("=")[1]);
+            }
+         }
+         return theRequest;
+     }
+
+
+     function getRequestParam(param) {
+         let params = getRequestParams();
+         return params[param];
+	 }
+
+
+
+    var loginVue = new Vue({
+        el: '#app',
+        data: function() {
+            return {
+                loading:false,
+                loginDisabled:false,
+                user: {
+                    username: '',
+                    password: ''
+                },
+                loginRules: {
+                    username: [
+                        { required: true, message: '请输入用户名', trigger: ['blur','change'] }
+                    ],
+                    password: [
+                        { required: true, message: '请输入密码', trigger: ['blur','change'] },
+                        { min: 6, max: 15, message: '长度在 6 到 15 个字符', trigger: ['blur','change'] }
+                    ]
+                }
+            }
+        },
+
+
+        methods:{
+
+            submitForm:function(formName) {
+                var $this = this;
+                this.$refs[formName].validate(function(valid){
+                    var user = {
+                        username:$this.user.username,
+                        password:$this.user.password
+                    };
+                    if (valid) {
+                        $this.loading = true;
+                        $this.loginDisabled = true;
+
+                        $.ajax({
+                            cache: true,
+                            url:'/login/',
+                            type:'POST',
+                            data:user,
+                            async: false,
+                            success:function (data){
+                                $this.loading = false;
+                                if(data.status){
+                                    $this.$message.success('登录成功');
+									let next = getRequestParam('next');
+									if(next){
+                                    	window.location.href = next;
+                                    }else{
+                                        window.location.href = '/';
+                                    }
+                                }else{
+                                    $this.loginDisabled = false;
+                                    $this.$message.error(data.msg);
+                                }
+                            },
+                            error: function (jqXHR, textStatus, errorThrown) {
+                                $this.loading = false;
+                                $this.loginDisabled = false;
+                                $this.$message.error('服务器异常，请稍后重试');
+                            }
+                        });
+                    } else {
+                        return false;
+                    }
+                });
+            },
+            openError:function (error) {
+                this.$message.error(error);
+            }
+        }
+    });
+</script>
+</body>
+</html>

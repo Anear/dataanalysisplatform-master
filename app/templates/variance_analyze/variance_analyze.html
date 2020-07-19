@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+{% block title %}方差分析{% endblock %}
+{% block custom_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/data_import.css')}}">
+    <style>
+        .el-form-item {
+            margin-bottom: 0px;
+        }
+       .el-form > .el-form-item > .el-form-item__label {
+            width: 98px;
+        }
+        .el-form--inline .el-form-item {
+            display: inline-block;
+            margin-right: 0px;
+            vertical-align: top;
+        }
+        .el-form >.el-form-item.field-form-item>.el-form-item__label{
+            width: auto;
+        }
+        element.style {
+            position: relative;
+            left: 1000px;
+            width: 100px;
+        }
+        .el-table .cell {
+            line-height: 20px;
+        }
+        .el-dialog {
+            width: 90%;
+        }
+    </style>
+{% endblock %}
+{% block custom_content %}
+      <el-card style="min-height: 500px">
+          <el-card style="margin-bottom: 5px">
+              <template>
+                    <div>
+                        <div>
+                            <el-form :inline="true" style="margin-left: 10px">
+                                 <el-form-item label="数据集名称" size="mini" style="margin-left: 10px">
+                                     <el-select v-model="dataFileName" @change="checkDataName" placeholder="请选择" size="small">
+                                         <el-option v-for="item in fileNames" :value="item"></el-option>
+                                     </el-select>
+                                 </el-form-item>
+                                <el-button @click="cb" size="mini" style="margin-left: 60%">数据集展开</el-button>
+                             </el-form>
+
+
+                        </div>
+                        <hr>
+                        <el-collapse-transition>
+                            <div v-if="show" style="padding: 1px 1px;background-color: #8fbbff">
+                                <el-alert :title="numAlter" type="info" :closable="false"></el-alert>
+                                <el-table :data="tableData" border style="width: 100%">
+                                    <template v-for="col in fileFeatureOptions">
+                                        <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                                    </template>
+                                </el-table>
+                            </div>
+                        </el-collapse-transition>
+
+
+                    </div>
+              </template>
+              <el-form style="margin-top: 0px;font-size:14px;margin-left:2%" :inline="true" size="small">
+                  <el-form-item label="参数输入:">
+                      <div v-if="tableData.length>0" style="margin-top: 10px;border: 1px solid #2f3a50">
+
+
+                          <template v-if="tableData.length>0 && (name==1)">
+                              <el-form >
+                                  <el-form-item label="变量X：">
+                                      <el-checkbox-group v-model="dataFileFeatureX" :max="1" style="padding-right: 10px">
+                                          <template v-for="featureOption in fileFeatureOptions">
+                                              <template v-if="featureOption!=dataFileFeatureY">
+                                                  <el-checkbox :label="featureOption" :key="featureOption">{{featureOption}}</el-checkbox>
+                                              </template>
+                                              <template v-if="featureOption==dataFileFeatureY">
+                                                  <el-checkbox :label="featureOption" :key="featureOption" disabled>{{featureOption}}</el-checkbox>
+                                              </template>
+                                          </template>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+
+                          <template v-if="tableData.length>0 && (name==2)">
+                              <el-form>
+                                  <el-form-item label="变量X：">
+                                      <el-checkbox-group v-model="dataFileFeatureX" :max="2" style="padding-right: 10px">
+                                          <template v-for="featureOption in fileFeatureOptions">
+                                              <template v-if="featureOption!=dataFileFeatureY">
+                                                  <el-checkbox :label="featureOption" :key="featureOption">{{featureOption}}</el-checkbox>
+                                              </template>
+                                              <template v-if="featureOption==dataFileFeatureY">
+                                                  <el-checkbox :label="featureOption" :key="featureOption" disabled>{{featureOption}}</el-checkbox>
+                                              </template>
+                                          </template>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+
+                          <template v-if="tableData.length>0 && (name==3)">
+                              <el-form>
+                                  <el-form-item label="变量X：">
+                                      <el-checkbox-group v-model="dataFileFeatureX" style="padding-right: 10px">
+                                          <template v-for="featureOption in fileFeatureOptions">
+                                              <template v-if="featureOption!=dataFileFeatureY">
+                                                  <el-checkbox :label="featureOption" :key="featureOption">{{featureOption}}</el-checkbox>
+                                              </template>
+                                              <template v-if="featureOption==dataFileFeatureY">
+                                                  <el-checkbox :label="featureOption" :key="featureOption" disabled>{{featureOption}}</el-checkbox>
+                                              </template>
+                                          </template>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+
+                          <template v-if="tableData.length>0 && (name==1 || name==2 || name==3)">
+                              <el-form>
+                                  <el-form-item label="变量Y：">
+                                      <el-checkbox-group v-model="dataFileFeatureY" :max="1">
+                                          <template v-for="featureOption in fileFeatureOptions">
+                                              <template v-if="dataFileFeatureX.indexOf(featureOption)>-1">
+                                                  <el-checkbox :label="featureOption" :key="featureOption" disabled>{{featureOption}}</el-checkbox>
+                                              </template>
+                                              <template v-else>
+                                                  <el-checkbox :label="featureOption" :key="featureOption">{{featureOption}}</el-checkbox>
+                                              </template>
+                                          </template>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+
+                          <template v-if="tableData.length>0 && (name==2 || name==3)">
+                              <el-form>
+                                  <el-form-item label="交互效应：">
+                                      <el-checkbox-group v-model="boolOption" @change="handleChange" :max="1">
+                                          <el-checkbox v-for="option in boolOptions" :label="option" :key="option">{{option}}</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+
+                          <template v-if="interactionOptionVisible && (name==3)">
+                              <el-form>
+                                  <el-form-item label="选择：">
+                                      <el-checkbox-group v-model="interactionBoolOption" @change="interactionHandleChange" :max="1">
+                                          <el-checkbox label="all" >两两交互</el-checkbox>
+                                          <el-checkbox label="customize" >自定义</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+
+                          <template v-if="interactionParameterVisible && (name==3)">
+                              <el-form>
+                                  <el-form-item label="自定义参数：">
+                                      <el-tooltip content="输入格式：字段1：字段2,字段1：字段3,..." placement="right" effect="light">
+                                          <el-input v-model="interactionParameter" placeholder="请输入" style="width: 200px" size="small"></el-input>
+                                      </el-tooltip>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+
+                      </div>
+                  </el-form-item>
+              </el-form>
+
+
+              <el-form align="right">
+                  <el-form-item size="mini" style="margin-bottom: 1px">
+                      <el-button type="primary" @click="computeResult" style="margin-right: 70px" size="small">计算</el-button>
+                  </el-form-item>
+              </el-form>
+
+
+          </el-card>
+          <el-form style="margin-top: 20px">
+
+
+              <el-card align="center" style="min-height: 300px">
+                  <el-form-item label="结果:"></el-form-item>
+                      <template v-if="tableResult.length>0">
+                          <el-table :data="tableResult" border style="width: 100%">
+                              <template v-for="col in Cols">
+                                  <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                          </el-table>
+                      </template>
+              </el-card>
+
+
+          </el-form>
+      </el-card>
+{% endblock %}
+{% block custom_js %}
+<script>
+
+        let newData = JSON.parse(JSON.stringify(commonData));
+        newData.name={{ name }};
+        newData.defaultActive='1';
+        newData.breadcrumbOptions={
+            "1":'单因素分析',
+            "2":'双因素分析',
+            "3":'多因素分析',
+        };
+        newData.fileName='';
+        newData.fileNames=[];
+        newData.dataFileName='';
+        newData.updateSignal=false;
+        newData.fullscreenLoading= false;
+        newData.fileFeatureOptions=[];
+        newData.fileNameOptions=[];
+        newData.parameter='';
+        newData.dataFile='';
+        newData.Cols=[];
+        newData.loading=false;
+        newData.dataFileFeature='';
+        newData.dataFileFeatureX=[];
+        newData.dataFileFeatureY=[];
+        newData.boolOption= [];
+        newData.interactionParameter='';
+        newData.tableResult=[];
+        newData.basicColsWidths=[];
+        newData.selectedMethod='';
+        newData.selectedOption='';
+        newData.numAlter='预览前10行';
+        newData.tableData=[];
+        newData.activeNames= [];
+        newData.checkAll= false;
+        newData.isIndeterminate= true;
+        newData.interactionParameterVisible=false;
+        newData.interactionOptionVisible=false;
+        newData.interactionBoolOption=[];
+        newData.boolOptions=['是', '否'];
+        newData.show=false;
+
+        let newComputed = Object.assign({},commonComputed);
+        newComputed.breadcrumbs=function(){
+            if(this.name){
+                return ['方差分析', this.breadcrumbOptions[this.name]];
+            }else{
+                return ['方差分析'];
+            }
+        };
+
+        let newMethods = Object.assign({},commonMethods);
+        newMethods.cb=function() {
+            this.show = !this.show;
+        };
+        newMethods.checkDataName=function(){
+            this.dataFileFeatureX = [];
+            this.dataFileFeatureY = [];
+            this.boolOption = [];
+            this.interactionBoolOption = [];
+            this.interactionParameter = [];
+            this.Cols = [];
+            this.tableResult = [];
+            let $this = this;
+
+<!-- 选择数据集 -->
+            $.ajax({
+                url:'/variance_analyze/data/selectdata/',
+                data:{
+                    'file_name':$this.dataFileName,
+                },
+                method:'post',
+                dataType:'json',
+                success:function (data) {
+                    $this.fileFeatureOptions = data.file_features;
+                    $this.tableData = data.data;
+                },
+                error:function () {
+                    $this.loading=false;
+                    $this.$message.error('服务器有异常，请稍后重试');
+                }
+            });
+        };
+        newMethods.handleChange=function(){
+            this.interactionBoolOption = [];
+            this.interactionOptionVisible = this.boolOption.indexOf('是') > -1;
+            if (this.boolOption[0]!=='是'){
+                this.interactionParameterVisible = false;
+            }
+        };
+        newMethods.interactionHandleChange=function() {
+            this.interactionParameter = [];
+            this.interactionParameterVisible = this.interactionBoolOption[0]==='customize';
+        };
+        newMethods.handleCheckAllChange=function(val) {
+            this.dataFileFeatureXs = val ? this.fileFeatureOptions : [];
+            this.isIndeterminate = false;
+        };
+        newMethods.handleCheckedCitiesChange=function(value) {
+            let checkedCount = value.length;
+            this.checkAll = checkedCount === this.fileFeatureOptions.length;
+            this.isIndeterminate = checkedCount > 0 && checkedCount < this.fileFeatureOptions.length;
+        };
+        newMethods.computeResult=function(){
+            const loading = this.$loading({
+                lock: true,
+                text: 'Loading',
+                spinner: 'el-icon-loading',
+                background: 'rgba(0, 0, 0, 0.7)'
+            });
+            let $this = this;
+
+<!-- 计算结果 -->
+            $.ajax({
+                url:'/variance_analyze/data/compute/',
+                data:{
+                    'file_name':$this.dataFileName,
+                    'file_method':$this.name,
+                    'file_featureX':$this.dataFileFeatureX,
+                    'file_featureY':$this.dataFileFeatureY,
+                    'file_boolOption':$this.boolOption,
+                    'file_interactionBoolOption':$this.interactionBoolOption,
+                    'file_interactionParameter':$this.interactionParameter,
+                },
+                method:'post',
+                dataType:'json',
+                success:function (data) {
+                    setTimeout(() => {
+                        loading.close();
+                    }, 10);
+                    $this.Cols = data.col;
+                    $this.tableResult = data.result;
+                },
+                error:function () {
+                    setTimeout(() => {
+                        loading.close();
+                    }, 10);
+                    $this.$message.error('请输入正确的参数！');
+                }
+            });
+        };
+        newMethods.init=function() {
+            let $this = this;
+
+<!--  -->
+            $.ajax({
+                url:'/import/data/init/',
+                method:'post',
+                success:function (data) {
+                    if (data.status){
+                        $this.fileNames = data.file_names;
+                    }
+                    else{
+                        return false
+                    }
+                },
+               error: function (jqXHR, textStatus, errorThrown) {
+                       $this.$message.error('服务器有异常，请稍后重试');
+                       return false
+               },
+            })
+        };
+
+        var vm = new Vue({
+            el: '#app',
+            data: function () {
+                return newData;
+            },
+            computed:newComputed,
+            methods:newMethods,
+        });
+        $(function () {
+            vm.initLocalUserMenus(vm);
+            vm.initUserMenus(vm);
+            vm.init();
+		});
+    </script>
+{% endblock %}

@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+{% block title %}主成分因子分析{% endblock %}
+{% block custom_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/data_import.css')}}">
+    <style>
+        .el-form-item {
+            margin-bottom: 0px;
+        }
+
+       .el-form > .el-form-item > .el-form-item__label {
+            width: 98px;
+        }
+        .el-form--inline .el-form-item {
+            display: inline-block;
+            margin-right: 0px;
+            vertical-align: top;
+        }
+        .el-table .cell {
+            line-height: 20px;
+        }
+        .el-dialog {
+            width: 90%;
+        }
+    </style>
+{% endblock %}
+{% block custom_content %}
+      <el-card style="min-height: 500px">
+          <el-card>
+              <template>
+                    <div>
+                        <div>
+                            <el-form :inline="true" style="margin-left: 20px">
+                                 <el-form-item label="数据集名称" size="mini" style="margin-left: 10px">
+                                     <el-select v-model="dataFileName" @change="checkDataName" placeholder="请选择" size="small">
+                                         <el-option v-for="item in fileNames" :value="item"></el-option>
+                                     </el-select>
+                                 </el-form-item>
+                                 <el-button @click="cb" size="mini" style="margin-left: 60%">数据集展开</el-button>
+                             </el-form>
+                        </div>
+                        <hr>
+                        <el-collapse-transition>
+                            <div v-if="show" style="padding: 1px 1px;background-color: #8fbbff">
+                                <el-alert :title="numAlter" type="info" :closable="false"></el-alert>
+                                <el-table :data="tableData" border style="width: 100%">
+                                    <template v-for="col in fileFeatureOptions">
+                                        <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                                    </template>
+                                </el-table>
+                            </div>
+                        </el-collapse-transition>
+                    </div>
+              </template>
+              <el-form style="margin-top: 0px;font-size:14px;margin-left:2%" :inline="true" size="small">
+                  <el-form-item label="参数输入:">
+                      <div v-if="tableData.length>0" style="margin-top: 10px;border: 1px solid #2f3a50">
+                          <template v-if="tableData.length>0 && (name==1 || name==2)">
+                              <el-form>
+                                  <el-form-item label="选择字段：">
+                                      <el-checkbox-group v-model="dataFileFeatures" @change="handleCheckedCitiesChange" style="padding-right: 10px">
+                                          <el-checkbox v-for="featureOption in fileFeatureOptions" :label="featureOption" :key="featureOption">{{featureOption}}</el-checkbox>
+                                          <el-checkbox :indeterminate="isIndeterminate" v-model="checkAll" @change="handleCheckAllChange">全选</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==1)">
+                              <el-form>
+                                  <el-form-item label="主成分数目：">
+                                      <el-tooltip content="不超过选择字段的总个数" placement="right" effect="light">
+                                          <el-input v-model="parameter" placeholder="请输入" style="width: 100px" size="small"></el-input>
+                                      </el-tooltip>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==2)">
+                              <el-form>
+                                  <el-form-item label="因子数目：">
+                                      <el-tooltip content="不超过选择字段的总个数" placement="right" effect="light">
+                                          <el-input v-model="parameter" placeholder="请输入" style="width: 100px" size="small"></el-input>
+                                      </el-tooltip>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                      </div>
+                  </el-form-item>
+              </el-form>
+              <el-form align="right">
+                  <el-form-item size="mini" style="margin-bottom: 1px">
+                      <el-button type="primary" @click="computeResult" style="margin-right: 70px" size="small">计算</el-button>
+                  </el-form-item>
+              </el-form>
+          </el-card>
+          <el-form style="margin-top: 20px">
+              <el-card align="center" style="min-height: 300px">
+                  <el-form-item label="结果：" align="center"></el-form-item>
+                  <template v-if="result_PCA_1.length>0">
+                      <el-table :data="result_PCA_1" border style="width: 60%">
+                          <el-table-column align="center" label="特征值、贡献率汇总">
+                              <template v-for="col in result_PCA_1_cols">
+                                  <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+                  <template v-if="result_PCA_2.length>0">
+                      <br>
+                      <el-table :data="result_PCA_2" border style="width: 60%">
+                          <el-table-column align="center" label="特征向量">
+                              <template v-for="col in result_PCA_2_cols">
+                                  <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+                  <template v-if="result_PCA_3.length>0">
+                      <br>
+                      <el-table :data="result_PCA_3" border style="width: 60%">
+                          <el-table-column align="center" label="样本分布（降维后）">
+                              <template v-for="col in result_PCA_3_cols">
+                                  <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+                  <template v-if="result_PCA_4.length>0">
+                      <br>
+                      <el-table :data="result_PCA_4" border style="width: 60%" >
+                          <template v-for="col in result_PCA_4_cols">
+                              <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                          </template>
+                      </el-table>
+                  </template>
+                  <template v-if="screenImgUrl.length>0" v-for="screenImgUrl in screenImgUrls">
+                      <br>
+                      <el-col :span="24/screenImgUrl.length" style="margin-left: 30%">
+                          <img :src="screenImgUrl" alt="" width="480px" height="480px" style="clear:both"/></el-col>
+                  </template>
+                  <template v-if="result_factor_1.length>0">
+                      <br>
+                      <el-table :data="result_factor_1" border style="width: 60%" >
+                          <template v-for="col in result_factor_1_cols">
+                              <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                          </template>
+                      </el-table>
+                  </template>
+                  <template v-if="result_factor_2.length>0">
+                      <br>
+                      <el-table :data="result_factor_2" border style="width: 60%" >
+                          <template v-for="col in result_factor_2_cols">
+                              <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                          </template>
+                      </el-table>
+                  </template>
+                  <template v-if="result_factor_3.length>0">
+                      <br>
+                      <el-table :data="result_factor_3" border style="width: 60%" >
+                          <template v-for="col in result_factor_3_cols">
+                              <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                          </template>
+                      </el-table>
+                  </template>
+              </el-card>
+          </el-form>
+      </el-card>
+{% endblock %}
+{% block custom_js %}
+<script>
+
+        let newData = JSON.parse(JSON.stringify(commonData));
+        newData.name={{ name }};
+        newData.defaultActive='1';
+        newData.breadcrumbOptions={'1': '主成分分析', '2': '因子分析'};
+        newData.fileName='';
+        newData.fileNames=[];
+        newData.dataFileName='';
+        newData.updateSignal=false;
+        newData.fullscreenLoading= false;
+        newData.fileFeatureOptions=[];
+        newData.fileNameOptions=[];
+        newData.parameter='';
+        newData.dataFile='';
+        newData.components_cols=[];
+        newData.transform_cols=[];
+        newData.cov_cols=[];
+        newData.loading=false;
+        newData.dataFileFeatures=[];
+        newData.result_PCA_1_cols=[];
+        newData.result_PCA_1=[];
+        newData.result_PCA_2_cols=[];
+        newData.result_PCA_2=[];
+        newData.result_PCA_3_cols=[];
+        newData.result_PCA_3=[];
+        newData.result_PCA_4_cols=[];
+        newData.result_PCA_4=[];
+        newData.result_factor_1_cols = [];
+        newData.result_factor_1 = [];
+        newData.result_factor_2_cols = [];
+        newData.result_factor_2 = [];
+        newData.result_factor_3_cols = [];
+        newData.result_factor_3 = [];
+        newData.screenImgUrls=[];
+        newData.basicColsWidths=[];
+        newData.boolOption='';
+        newData.selectedOption='';
+        newData.checkAll= false;
+        newData.isIndeterminate= true;
+        newData.activeNames= [];
+        newData.numAlter='预览前10行';
+        newData.show=false;
+        newData.tableData=[];
+        newData.methodOptions= [
+            {value: 'def_pca', label: '主成分分析',},
+            {value: 'def_factor_analysis', label: '因子分析',},
+            ];
+        newData.boolOptions=[
+            {label:'是',value:'True'},
+            {label:'否',value:'False'},
+        ];
+
+        let newComputed = Object.assign({},commonComputed);
+        newComputed.breadcrumbs=function(){
+            if(this.name){
+                return ['降维', this.breadcrumbOptions[this.name]];
+            }else{
+                return ['降维'];
+            }
+        };
+
+        let newMethods = Object.assign({},commonMethods);
+        newMethods.cb=function() {
+            this.show = !this.show;
+        };
+        newMethods.checkDataName=function(){
+            this.dataFileFeatures = [];
+            this.parameter = '';
+            this.result_PCA_1_cols=[];
+            this.result_PCA_1=[];
+            this.result_PCA_2_cols=[];
+            this.result_PCA_2=[];
+            this.result_PCA_3_cols=[];
+            this.result_PCA_3=[];
+            this.result_PCA_4_cols=[];
+            this.result_PCA_4=[];
+            this.result_factor_1_cols = [];
+            this.result_factor_1 = [];
+            this.result_factor_2_cols = [];
+            this.result_factor_2 = [];
+            this.result_factor_3_cols = [];
+            this.result_factor_3 = [];
+            this.screenImgUrls=[];
+            let $this = this;
+
+<!-- 选择数据集  -->
+            $.ajax({
+                url:'/component_factor_analyze/data/selectdata/',
+                data:{
+                    'file_name':$this.dataFileName,
+                },
+                method:'post',
+                dataType:'json',
+                success:function (data) {
+                    $this.fileFeatureOptions = data.file_features;
+                    $this.tableData = data.data;
+                },
+                error:function () {
+                    $this.loading=false;
+                    $this.$message.error('服务器有异常，请稍后重试');
+                }
+            });
+        };
+        newMethods.handleCheckAllChange=function(val) {
+            this.dataFileFeatures = val ? this.fileFeatureOptions : [];
+            this.isIndeterminate = false;
+        };
+        newMethods.handleCheckedCitiesChange=function(value) {
+            let checkedCount = value.length;
+            this.checkAll = checkedCount === this.fileFeatureOptions.length;
+            this.isIndeterminate = checkedCount > 0 && checkedCount < this.fileFeatureOptions.length;
+        };
+        newMethods.computeResult=function(){
+            const loading = this.$loading({
+                lock: true,
+                text: 'Loading',
+                spinner: 'el-icon-loading',
+                background: 'rgba(0,0,0,0.7)'
+            });
+            let $this = this;
+
+<!--  计算数据 -->
+            $.ajax({
+                url:'/component_factor_analyze/data/compute/',
+                data:{
+                    'file_name':$this.dataFileName,
+                    'file_method':$this.name,
+                    'file_features':$this.dataFileFeatures,
+                    'file_parameter':$this.parameter,
+                },
+                method:'post',
+                dataType:'json',
+                success:function (data) {
+                    setTimeout(() => {
+                        loading.close();
+                    }, 10);
+                    $this.result_PCA_1_cols = data.result_PCA_1_cols;
+                    $this.result_PCA_1 = data.result_PCA_1;
+                    $this.result_PCA_2_cols = data.result_PCA_2_cols;
+                    $this.result_PCA_2 = data.result_PCA_2;
+                    $this.result_PCA_3_cols = data.result_PCA_3_cols;
+                    $this.result_PCA_3 = data.result_PCA_3;
+                    $this.result_PCA_4_cols = data.result_PCA_4_cols;
+                    $this.result_PCA_4 = data.result_PCA_4;
+                    $this.screenImgUrls = data.result_PCA_path;
+                    $this.result_factor_1_cols = data.result_factor_1_cols;
+                    $this.result_factor_1 = data.result_factor_1;
+                    $this.result_factor_2_cols = data.result_factor_2_cols;
+                    $this.result_factor_2 = data.result_factor_2;
+                    $this.result_factor_3_cols = data.result_factor_3_cols;
+                    $this.result_factor_3 = data.result_factor_3;
+                },
+                error:function (jqXHR, textStatus, errorThrown) {
+                    setTimeout(() => {
+                        loading.close();
+                    }, 10);
+                    $this.$message.error('请输入正确的参数！');
+                }
+            });
+        };
+        newMethods.discountHeaderStyle1=function( row, column, rowIndex, columnIndex) {
+            if (row.rowIndex === 1) {
+                return { display: 'none' }
+            }
+        };
+        newMethods.init=function () {
+            let $this = this;
+
+<!--  查看数据 -->
+            $.ajax({
+                url:'/import/data/init/',
+                method:'post',
+                success:function (data) {
+                    if (data.status){
+                        $this.fileNames = data.file_names;
+                    }
+                    else{
+                        return false
+                    }
+                },
+               error: function (jqXHR, textStatus, errorThrown) {
+                       $this.$message.error('服务器有异常，请稍后重试');
+                       return false
+               },
+            })
+        };
+
+        var vm = new Vue({
+            el: '#app',
+            data: function () {
+                return newData;
+            },
+            computed:newComputed,
+            methods:newMethods,
+        });
+        $(function () {
+            vm.initLocalUserMenus(vm);
+            vm.initUserMenus(vm);
+            vm.init();
+		});
+    </script>
+{% endblock %}

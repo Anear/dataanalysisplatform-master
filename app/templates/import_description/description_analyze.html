@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+{% block title %}描述性分析{% endblock %}
+{% block custom_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/data_import.css')}}">
+    <style>
+        .el-form-item {
+            margin-bottom: 0px;
+        }
+        .el-form-item__content {
+            line-height: 10px;
+            position: relative;
+            font-size: 14px;
+        }
+        .el-form-item__label {
+            line-height: 29px;
+        }
+        .el-form-item__content {
+            line-height: 29px;
+            position: relative;
+        }
+        .el-form > .el-form-item > .el-form-item__label {
+            width: 100px;
+        }
+        .el-dialog {
+            width: 90%;
+        }
+        .el-table .cell {
+            line-height: 20px;
+        }
+    </style>
+{% endblock %}
+{% block custom_content %}
+      <el-card style="min-height: 500px">
+          <el-card style="margin-bottom: 15px">
+              <template>
+                    <div>
+                        <div>
+                            <el-form :inline="true" >
+                                 <el-form-item label="数据集名称" size="mini" >
+                                     <el-select v-model="dataFileName" @change="checkDataName" placeholder="请选择" size="small">
+                                         <el-option v-for="item in fileNames" :value="item"></el-option>
+                                     </el-select>
+                                 </el-form-item>
+                                 <el-button @click="cb" size="mini" style="margin-left: 48%">数据集展开</el-button>
+                            </el-form>
+                        </div>
+                        <hr>
+                        <el-collapse-transition>
+                            <div v-if="show" style="padding: 1px 1px;background-color: #8fbbff">
+                                <el-alert :title="numRow" type="info" :closable="false"></el-alert>
+                                <el-table :data="tableData" border style="width: 100%">
+                                    <template v-for="col in fileFeatureOptions">
+                                        <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                                    </template>
+                                </el-table>
+                            </div>
+                        </el-collapse-transition>
+                    </div>
+              </template>
+              <el-form >
+                  <el-form-item label="选择字段:" >
+                      <template v-if="tableData.length>0" >
+                          <el-checkbox-group v-model="dataFileFeatures" @change="handleCheckedCitiesChange">
+                              <el-checkbox v-for="city in fileFeatureOptions" :label="city" :key="city">{{city}}</el-checkbox>
+                              <el-checkbox :indeterminate="isIndeterminate" v-model="checkAll" @change="handleCheckAllChange">全选</el-checkbox>
+                          </el-checkbox-group>
+                      </template>
+                  </el-form-item>
+              </el-form>
+              <el-form style="margin-top: 15px">
+                  <div style="margin-left: 16px;margin-right: 16px;margin-top: 10px;border: 1px solid #2f3a50">
+                      <el-form-item class="field-form-item" label="集中趋势:" style="margin-left: 1%">
+                          <el-checkbox-group v-model="trendList">
+                              <el-checkbox label="def_mean">均值</el-checkbox>
+                              <el-checkbox label="def_median">中位数</el-checkbox>
+                              <el-checkbox label="def_mode">众数</el-checkbox>
+                              <el-checkbox label="def_quantile" @change="pVisibleBool">分位数</el-checkbox>
+                              <template v-if="pVisible==true">
+                                  <span style="font-size: 14px">分位点：</span>
+                                  <el-input style="width: 70px" size="mini" v-model="prameter_p" placeholder="请输入"></el-input>
+                              </template>
+                          </el-checkbox-group>
+                      </el-form-item>
+                      <el-form-item class="field-form-item" label="离散程度:" style="margin-left: 1%">
+                          <el-checkbox-group v-model="discreteList">
+                              <el-checkbox label="def_ptp">极差</el-checkbox>
+                              <el-checkbox label="def_varBias">方差（有偏估计）</el-checkbox>
+                              <el-checkbox label="def_var">方差（无偏估计）</el-checkbox>
+                              <el-checkbox label="def_std">标准差</el-checkbox>
+                              <el-checkbox label="def_CV">变异系数</el-checkbox>
+                          </el-checkbox-group>
+                      </el-form-item>
+                      <el-form-item class="field-form-item" label="分布形状:" style="margin-left: 1%">
+                          <el-checkbox-group v-model="distributedList">
+                              <el-checkbox label="def_skew">偏态系数</el-checkbox>
+                              <el-checkbox label="def_kurt">峰态系数</el-checkbox>
+                          </el-checkbox-group>
+                      </el-form-item>
+                      <el-form-item class="field-form-item" label="相关程度:" style="margin-left: 1%">
+                          <el-checkbox-group v-model="corList">
+                              <el-checkbox label="def_covBias">协方差(有偏估计)</el-checkbox>
+                              <el-checkbox label="def_cov">协方差(无偏估计)</el-checkbox>
+                              <el-checkbox label="def_corrcoef">相关系数</el-checkbox>
+                          </el-checkbox-group>
+                      </el-form-item>
+                  </div>
+              </el-form>
+              <el-form align="right" >
+                  <el-form-item size="mini" style="margin-bottom: 1px">
+                      <el-button type="primary" @click="computeResult" style="margin-right: 70px;margin-top: 10px" size="small">计算</el-button>
+                  </el-form-item>
+              </el-form>
+          </el-card>
+          <el-form>
+              <br style="min-height: 300px">
+                  <el-form-item label="结果:"></el-form-item>
+                  <template v-if="tableTrend.length>0">
+                      <el-table :data="tableTrend" border style="width: 100%">
+                          <template v-for="col in tableTrendCols">
+                              <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                          </template>
+                      </el-table>
+                  </template>
+                  </br>
+                  <template v-if="tableDiscrete.length>0">
+                      <el-table :data="tableDiscrete" border style="width: 100%">
+                          <template v-for="col in tableDiscreteCols">
+                              <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                          </template>
+                      </el-table>
+                  </template>
+                  </br>
+                  <template v-if="tableDistribute.length>0">
+                      <el-table :data="tableDistribute" border style="width: 100%">
+                          <template v-for="col in tableDistributeCols">
+                              <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                          </template>
+                      </el-table>
+                  </template>
+                  </br>
+                  <template v-if="tableCovBias.length>0">
+                      <el-table :data="tableCovBias" border style="width: 100%">
+                          <template v-for="col in tableCovBiasCols">
+                              <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                          </template>
+                      </el-table>
+                  </template>
+                  </br>
+                  <template v-if="tableCov.length>0">
+                      <el-table :data="tableCov" border style="width: 100%">
+                          <template v-for="col in tableCovCols">
+                              <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                          </template>
+                      </el-table>
+                  </template>
+                  </br>
+                  <template v-if="tableCor.length>0">
+                      <el-table :data="tableCor" border style="width: 100%">
+                          <template v-for="col in tableCorCols">
+                              <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                          </template>
+                      </el-table>
+                  </template>
+              </el-card>
+          </el-form>
+      </el-card>
+{% endblock %}
+{% block custom_js %}
+<script>
+        let newData = JSON.parse(JSON.stringify(commonData));
+        newData.defaultActive = '2';
+        newData.breadcrumbs=['描述性分析'];
+        newData.fileNames=[];
+        newData.dataFileName='';
+        newData.updateSignal=false;
+        newData.fullscreenLoading= false;
+        newData.fileFeatureOptions=[];
+        newData.fileNameOptions=[];
+        newData.dataFile='';
+        newData.cols=[];
+        newData.loading=false;
+        newData.trendList=[];
+        newData.discreteList=[];
+        newData.distributedList=[];
+        newData.corList=[];
+        newData.plotList=[];
+        newData.tableTrendCols=[];
+        newData.tableDiscreteCols=[];
+        newData.tableDistributeCols=[];
+        newData.tableCovBiasCols=[];
+        newData.tableCovCols=[];
+        newData.tableCorCols=[];
+        newData.tableTrend=[];
+        newData.tableDiscrete=[];
+        newData.tableDistribute=[];
+        newData.tablePlotPicture=[];
+        newData.tableCovBias=[];
+        newData.tableCov=[];
+        newData.tableCor=[];
+        newData.basicColsWidths=[];
+        newData.statusPlot=[];
+        newData.screenImgUrls=[];
+        newData.tableData=[];
+        newData.numRow='预览前10行';
+        newData.checkAll= false;
+        newData.isIndeterminate= true;
+        newData.dataFileFeatures=[];
+        newData.show=false;
+        newData.prameter_p='';
+        newData.pVisible=false;
+
+        let newComputed = Object.assign({},commonComputed);
+
+        let newMethods = Object.assign({},commonMethods);
+        newMethods.pVisibleBool=function(){
+            this.prameter_p='';
+            this.pVisible= !this.pVisible;
+        };
+        newMethods.cb=function() {
+            this.show = !this.show;
+        };
+        newMethods.checkDataName=function(){
+            this.dataFileFeatures = [];
+            this.tableTrendCols=[];
+            this.tableDiscreteCols=[];
+            this.tableDistributeCols=[];
+            this.tableCovBiasCols=[];
+            this.tableCovCols=[];
+            this.tableCorCols=[];
+            this.tableTrend=[];
+            this.tableDiscrete=[];
+            this.tableDistribute=[];
+            this.tablePlotPicture=[];
+            this.tableCovBias=[];
+            this.tableCov=[];
+            this.tableCor=[];
+            let $this = this;
+
+<!-- 选择数据 -->
+            $.ajax({
+                url:'/import_description/data/selectdata/',
+                data:{
+                    'file_name':$this.dataFileName,
+                },
+                method:'post',
+                dataType:'json',
+                success:function (data) {
+                    $this.fileFeatureOptions = data.file_features;
+                    $this.tableData = data.data;
+                },
+                error:function (jqXHR, textStatus, errorThrown) {
+                    $this.loading=false;
+                    $this.$message.error('服务器有异常，请稍后重试');
+                }
+            });
+        };
+        newMethods.handleCheckAllChange=function(val) {
+            this.dataFileFeatures = val ? this.fileFeatureOptions : [];
+            this.isIndeterminate = false;
+        };
+        newMethods.handleCheckedCitiesChange=function(value) {
+            let checkedCount = value.length;
+            this.checkAll = checkedCount === this.fileFeatureOptions.length;
+            this.isIndeterminate = checkedCount > 0 && checkedCount < this.fileFeatureOptions.length;
+        };
+        newMethods.computeResult=function(){
+            const loading = this.$loading({
+                lock: true,
+                text: 'Loading',
+                spinner: 'el-icon-loading',
+                background: 'rgba(0, 0, 0, 0.7)'
+            });
+            let $this = this;
+
+<!-- 计算数据 -->
+            $.ajax({
+                url:'/import_description/data/compute/',
+                data:{
+                    'file_name':$this.dataFileName,
+                    'file_feature':$this.dataFileFeatures,
+                    'file_trendList':$this.trendList,
+                    'file_prameter_p':$this.prameter_p,
+                    'file_discreteList':$this.discreteList,
+                    'file_distributedList':$this.distributedList,
+                    'file_corList':$this.corList,
+                },
+                method:'post',
+                dataType:'json',
+                success:function (data) {
+                    setTimeout(() => {
+                        loading.close();
+                    }, 10);
+                    $this.tableTrendCols = data.trendCols;
+                    $this.tableTrend = data.trend;
+                    $this.tableDiscreteCols = data.discreteCols;
+                    $this.tableDiscrete = data.discrete;
+                    $this.tableDistributeCols = data.distributeCols;
+                    $this.tableDistribute = data.distribute;
+                    $this.tableCovCols = data.covCols;
+                    $this.tableCov = data.cov;
+                    $this.tableCovBiasCols = data.covBiasCols;
+                    $this.tableCovBias = data.covBias;
+                    $this.tableCorCols = data.corCols;
+                    $this.tableCor = data.cor;
+                },
+                error:function (jqXHR, textStatus, errorThrown) {
+                    setTimeout(() => {
+                        loading.close();
+                    }, 10);
+                    $this.$message.error('请输入正确的参数！');
+            }
+        });
+        };
+        newMethods.init=function () {
+            let $this = this;
+
+<!--  -->
+            $.ajax({
+                url:'/import/data/init/',
+                method:'post',
+                success:function (data) {
+                    if (data.status){
+                        $this.fileNames = data.file_names;
+                    }
+                    else{
+                        return false
+                    }
+                },
+               error: function (jqXHR, textStatus, errorThrown) {
+                       $this.$message.error('服务器有异常，请稍后重试');
+                       return false
+               },
+            })
+        };
+
+        var vm = new Vue({
+            el: '#app',
+            data: function () {
+                return newData;
+            },
+            computed:newComputed,
+            methods:newMethods,
+        });
+        $(function () {
+            vm.initLocalUserMenus(vm);
+            vm.initUserMenus(vm);
+            vm.init();
+		});
+    </script>
+{% endblock %}

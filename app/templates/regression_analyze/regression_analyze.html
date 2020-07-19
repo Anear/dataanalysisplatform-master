@@ -1,0 +1,510 @@
+{% extends "base.html" %}
+{% block title %}回归分析{% endblock %}
+{% block custom_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/data_import.css')}}">
+    <style>
+        .el-form-item {
+            margin-bottom: 0px;
+        }
+
+       .el-form > .el-form-item > .el-form-item__label {
+            width: 98px;
+        }
+        .el-form--inline .el-form-item {
+            display: inline-block;
+            margin-right: 0px;
+            vertical-align: top;
+        }
+        .el-table .cell {
+            line-height: 20px;
+        }
+        .el-dialog {
+            width: 90%;
+        }
+    </style>
+{% endblock %}
+{% block custom_content %}
+      <el-card style="min-height: 500px">
+          <el-card>
+              <template>
+                    <div>
+                        <div>
+                            <el-form :inline="true" style="margin-left: 10px">
+                                 <el-form-item label="数据集名称" size="mini" style="margin-left: 10px">
+                                     <el-select v-model="dataFileName" @change="checkDataName" placeholder="请选择" size="small">
+                                         <el-option v-for="item in fileNames" :value="item"></el-option>
+                                     </el-select>
+                                 </el-form-item>
+                                 <el-button @click="cb" size="mini" style="margin-left: 60%">数据集展开</el-button>
+                             </el-form>
+                        </div>
+                        <hr>
+                        <el-collapse-transition>
+                            <div v-if="show" style="padding: 1px 1px;background-color: #8fbbff">
+                                <el-alert :title="numAlter" type="info" :closable="false"></el-alert>
+                                <el-table :data="tableData" border style="width: 100%">
+                                    <template v-for="col in fileFeatureOptions">
+                                        <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                                    </template>
+                                </el-table>
+                            </div>
+                        </el-collapse-transition>
+                    </div>
+              </template>
+              <el-form style="margin-top: 0px;font-size:14px;margin-left:2%" :inline="true" size="small">
+                  <el-form-item label="参数输入:">
+                      <div v-if="tableData.length>0" style="margin-top: 10px;border: 1px solid #2f3a50">
+                          <template v-if="tableData.length>0 && (name==1 || name==3 || name==4)">
+                              <el-form>
+                                  <el-form-item label="自变量：">
+                                      <el-checkbox-group v-model="dataFileFeatureX" style="padding-right: 10px">
+                                          <template v-for="featureOption in fileFeatureOptions">
+                                              <template v-if="featureOption!=dataFileFeatureY[0]">
+                                                  <el-checkbox :label="featureOption" :key="featureOption">{{featureOption}}</el-checkbox>
+                                              </template>
+                                              <template v-if="featureOption==dataFileFeatureY[0]">
+                                                  <el-checkbox :label="featureOption" :key="featureOption" disabled>{{featureOption}}</el-checkbox>
+                                              </template>
+                                          </template>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==2)">
+                              <el-form>
+                                  <el-form-item label="自变量：">
+                                      <el-checkbox-group v-model="dataFileFeatureX" :max="1" style="padding-right: 10px">
+                                          <template v-for="featureOption in fileFeatureOptions">
+                                              <template v-if="featureOption!=dataFileFeatureY[0]">
+                                                  <el-checkbox :label="featureOption" :key="featureOption">{{featureOption}}</el-checkbox>
+                                              </template>
+                                              <template v-if="featureOption==dataFileFeatureY[0]">
+                                                  <el-checkbox :label="featureOption" :key="featureOption" disabled>{{featureOption}}</el-checkbox>
+                                              </template>
+                                          </template>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==1 || name==2 || name==3 || name==4)">
+                              <el-form>
+                                  <el-form-item label="因变量：">
+                                      <el-checkbox-group v-model="dataFileFeatureY" :max="1">
+                                          <template v-for="featureOption in fileFeatureOptions">
+                                              <template v-if="dataFileFeatureX.indexOf(featureOption)>-1">
+                                                  <el-checkbox :label="featureOption" :key="featureOption" disabled>{{featureOption}}</el-checkbox>
+                                              </template>
+                                              <template v-else>
+                                                  <el-checkbox :label="featureOption" :key="featureOption">{{featureOption}}</el-checkbox>
+                                              </template>
+                                          </template>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==2)">
+                              <el-form>
+                                  <el-form-item label="最高次幂：">
+                                      <el-tooltip content="请输入大于1的正整数" placement="right" effect="light">
+                                          <el-input v-model="parameter" placeholder="请输入" size="small" style="width:100px"></el-input>
+                                      </el-tooltip>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==1 || name==2 || name==3)">
+                              <el-form>
+                                  <el-form-item label="回归方法：">
+                                      <el-checkbox-group v-model="selectedMethodOption" :max="1">
+                                          <el-checkbox v-for="option in methodOptions" :label="option" :key="option">{{option}}</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==4)">
+                              <el-form >
+                                  <el-form-item label="参数个数：">
+                                      <el-tooltip content="1~9" placement="right" effect="light">
+                                          <el-input v-model="NumParameter" maxlength=1 placeholder="请输入" name="NumParameter" size="small" style="width:70px"></el-input>
+                                      </el-tooltip>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="NumbersInput>0 ">
+                              <el-form >
+                                  <el-form-item label="参数名：">
+                                      <template v-for="(item,index) in this.NumbersInput">
+                                          <el-tooltip content="自定义（用英文字母表示）" placement="top" effect="light">
+                                              <el-input v-model="numberFormName[index+1]" size="mini" style="width: 50px;margin-right: 10px"></el-input>
+                                          </el-tooltip>
+                                      </template>
+                                  </el-form-item>
+                              </el-form>
+                              <el-form>
+                                  <el-form-item label="初始值：">
+                                      <template v-for="(item,index) in this.NumbersInput">
+                                          <el-input v-model="numberFormValue[index+1]" size="mini" style="width: 50px;margin-right: 10px"></el-input>
+                                      </template>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==4)">
+                              <el-form>
+                                  <el-form-item label="非线性函数：">
+                                      <el-tooltip placement="right" effect="light">
+                                          <div slot="content">自变量：X1 X2<br/>因变量：Y<br/>参数个数：2<br/>参数名：a b<br/>初始值：1 1<br/>非线性函数：Y~a+X1+b/X2（表达式中=用~代替）<br/>PS：非线性函数表达式必须使用上述自变量和因变量的字段名和自定义的参数名</div>
+                                          <el-input v-model="nonLinearFunction" placeholder="请输入" size="small" style="width:200px"></el-input>
+                                      </el-tooltip>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                      </div>
+                  </el-form-item>
+              </el-form>
+              <el-form align="right">
+                  <el-form-item size="mini" style="margin-bottom: 1px">
+                      <el-button type="primary" @click="computeResult" style="margin-right: 70px" size="small">计算</el-button>
+                  </el-form-item>
+              </el-form>
+          </el-card>
+          <el-form style="margin-top: 20px">
+              <el-card align="center" style="min-height: 300px">
+                  <el-form-item label="结果："></el-form-item>
+                  <template v-if="result_1residuals.length>0">
+                      <el-table :data="result_1residuals" border style="width:80%">
+                          <el-table-column align="center" label="回归分析表">
+                              <template v-for="col in result_1residual_cols">
+                                  <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+                  <br/>
+                  <template v-if="result_1Coefficients.length>0">
+                      <el-table :data="result_1Coefficients" border style="width: 80%" >
+                          <el-table-column align="center" label="Coefficients">
+                              <template v-for="col in result_1Coefficients_cols">
+                                  <el-table-column :prop="col.prop" :label="col.label" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+                  <br/>
+                  <template v-if="result_1_summary.length>0">
+                      <el-table :data="result_1_summary" border style="width: 80%">
+                          <el-table-column align="center" label="Model Summary">
+                              <template v-for="col in result_1_summary_cols">
+                                  <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+                  <br/>
+                  <template v-if="result_2.length>0">
+                      <el-table :data="result_2" border style="width: 80%">
+                          <el-table-column align="center" label="置信区间">
+                              <template v-for="col in result_2cols">
+                                  <el-table-column :prop="col.prop" :label="col.label"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+                  <br/>
+                  <template v-if="result_34.length>0">
+                      <el-table :data="result_34" border style="width: 80%">
+                          <el-table-column align="center" label="拟合表">
+                              <template v-for="col in result_34cols">
+                                  <el-table-column :prop="col" :label="col"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+                  <template v-for="screenImgUrl in result_34_plot">
+                      <br>
+                      <el-col :span="24/screenImgUrl.length" style="margin-left: 30%">
+                          <img :src="screenImgUrl" alt="" width="480px" height="480px" style="clear:both"/></el-col>
+                  </template>
+                  <br/>
+                  <template v-if="result_5.length>0">
+                      <el-table :data="result_5" border style="width: 80%">
+                          <el-table-column align="center" label="方差膨胀因子">
+                              <template v-for="col in result_5cols">
+                                  <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+                  <br/>
+                  <template v-if="result_6.length>0">
+                      <el-table :data="result_6" border style="width: 80%">
+                          <el-table-column align="center" label="方差齐性检验">
+                              <template v-for="col in result_6cols">
+                                  <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+                  <br/>
+                  <template v-if="result_7.length>0">
+                      <el-table :data="result_7" border style="width: 80%">
+                          <el-table-column align="center" label="残差一阶自相关性检验">
+                              <template v-for="col in result_7cols">
+                                  <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+                  <br/>
+                  <template v-if="result_8.length>0">
+                      <el-table :data="result_8" border style="width: 80%">
+                          <el-table-column align="center" label="异常值">
+                              <template v-for="col in result_8cols">
+                                  <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+                  <template v-if="result_nonLinear.length>0">
+                      <el-table :data="result_nonLinear" border style="width: 80%">
+                          <template v-for="col in result_nonLinear_cols">
+                                  <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                      </el-table>
+                  </template>
+              </el-card>
+          </el-form>
+      </el-card>
+{% endblock %}
+{% block custom_js %}
+<script>
+
+        let newData = JSON.parse(JSON.stringify(commonData));
+        newData.name={{ name }};
+        newData.defaultActive='1';
+        newData.breadcrumbOptions={
+            "1":'线性回归',
+            "2":'多项式回归',
+            "3":'逻辑回归',
+            "4":'非线性回归',
+        };
+        newData.fileName='';
+        newData.fileNames=[];
+        newData.dataFileName='';
+        newData.updateSignal=false;
+        newData.fullscreenLoading=false;
+        newData.fileFeatureOptions=[];
+        newData.fileNameOptions=[];
+        newData.parameter='';
+        newData.dataFile='';
+        newData.loading=false;
+        newData.numAlter='预览前10行';
+        newData.tableData=[];
+        newData.activeNames=[];
+        newData.checkAll=false;
+        newData.isIndeterminate=true;
+        newData.show=false;
+        newData.dataFileFeatureX=[];
+        newData.dataFileFeatureY=[];
+        newData.NumParameter = '';
+        newData.numberFormName = [];
+        newData.numberFormValue = [];
+        newData.NumbersInput = '';
+        newData.nonLinearFunction = '';
+        newData.basicColsWidths=[];
+        newData.selectedMethodOption=[];
+        newData.functionParameter='';
+        newData.methodOptions=['无', '逐步法', '向前法', '向后法'];
+        newData.result_1formula_cols=[];
+        newData.result_1formula=[];
+        newData.result_1residual_cols=[];
+        newData.result_1residuals=[];
+        newData.result_1Coefficients_cols=[];
+        newData.result_1Coefficients=[];
+        newData.result_1_summary_cols=[];
+        newData.result_1_summary=[];
+        newData.result_2cols=[];
+        newData.result_2=[];
+        newData.result_34cols=[];
+        newData.result_34=[];
+        newData.result_34_plot = [];
+        newData.result_5cols=[];
+        newData.result_5=[];
+        newData.result_6cols=[];
+        newData.result_6=[];
+        newData.result_7cols=[];
+        newData.result_7=[];
+        newData.result_8cols=[];
+        newData.result_8=[];
+        newData.result_nonLinear_cols=[];
+        newData.result_nonLinear = [];
+
+        let newComputed = Object.assign({},commonComputed);
+        newComputed.breadcrumbs=function(){
+            if(this.name){
+                return ['回归分析', this.breadcrumbOptions[this.name]];
+            }else{
+                return ['回归分析'];
+            }
+        };
+
+        let newMethods = Object.assign({},commonMethods);
+        newMethods.cb=function() {
+            this.show = !this.show;
+        };
+        newMethods.checkDataName=function(){
+            this.dataFileFeatureX = [];
+            this.dataFileFeatureY = [];
+            this.parameter = '';
+            this.selectedMethodOption = [];
+            this.NumParameter = [];
+            this.numberFormName = [];
+            this.numberFormValue = [];
+            this.nonLinearFunction = '';
+            this.result_1residuals=[];
+            this.result_1Coefficients_cols=[];
+            this.result_1Coefficients=[];
+            this.result_1_summary_cols=[];
+            this.result_1_summary=[];
+            this.result_2cols=[];
+            this.result_2=[];
+            this.result_34cols=[];
+            this.result_34=[];
+            this.result_34_plot = [];
+            this.result_5cols=[];
+            this.result_5=[];
+            this.result_6cols=[];
+            this.result_6=[];
+            this.result_7cols=[];
+            this.result_7=[];
+            this.result_8cols=[];
+            this.result_8=[];
+            this.result_nonLinear_cols=[];
+            this.result_nonLinear = [];
+            let $this = this;
+
+<!-- 选择数据集 -->
+            $.ajax({
+                url:'/regression_analyze/data/selectdata/',
+                data:{
+                    'file_name':$this.dataFileName,
+                },
+                method:'post',
+                dataType:'json',
+                success:function (data) {
+                    $this.fileFeatureOptions = data.file_features;
+                    $this.tableData = data.data;
+                },
+                error:function () {
+                    $this.loading=false;
+                    $this.$message.error('服务器有异常，请稍后重试');
+                }
+            });
+        };
+        newMethods.handleChange=function(){
+        };
+        newMethods.computeResult=function(){
+            const loading = this.$loading({
+                lock: true,
+                text: 'Loading',
+                spinner: 'el-icon-loading',
+                background: 'rgba(0, 0, 0, 0.7)'
+            });
+            let $this = this;
+
+<!-- 计算数据 -->
+            $.ajax({
+                url:'/regression_analyze/data/compute/',
+                data:{
+                    'file_name':$this.dataFileName,
+                    'file_method':$this.name,
+                    'file_featureX':$this.dataFileFeatureX,
+                    'file_featureY':$this.dataFileFeatureY,
+                    'file_parameterMax':$this.parameter,
+                    'file_alternative':$this.selectedMethodOption,
+                    'file_numberFormName':$this.numberFormName,
+                    'file_numberFormValue':$this.numberFormValue,
+                    'file_nonLinearFunction':$this.nonLinearFunction,
+                },
+                method:'post',
+                dataType:'json',
+                success:function (data) {
+                    setTimeout(() => {
+                        loading.close();
+                    }, 10);
+                    $this.result_1residual_cols = data.result_1residual_cols;
+                    $this.result_1residuals = data.result_1residuals;
+                    $this.result_1Coefficients_cols = data.result_1Coefficients_cols;
+                    $this.result_1Coefficients = data.result_1Coefficients;
+                    $this.result_1_summary_cols = data.result_1_summary_cols;
+                    $this.result_1_summary = data.result_1_summary;
+                    $this.result_2cols = data.result_2cols;
+                    $this.result_2 = data.result_2;
+                    $this.result_34cols = data.result_34cols;
+                    $this.result_34 = data.result_34;
+                    $this.result_34_plot = data.result_34_plot;
+                    $this.result_5cols = data.result_5cols;
+                    $this.result_5 = data.result_5;
+                    $this.result_6cols = data.result_6cols;
+                    $this.result_6 = data.result_6;
+                    $this.result_7cols = data.result_7cols;
+                    $this.result_7 = data.result_7;
+                    $this.result_8cols = data.result_8cols;
+                    $this.result_8 = data.result_8;
+                    $this.result_nonLinear_cols = data.result_nonLinear_cols;
+                    $this.result_nonLinear = data.result_nonLinear;
+                },
+                error:function (jqXHR, textStatus, errorThrown) {
+                    setTimeout(() => {
+                        loading.close();
+                    }, 10);
+                    $this.$message.error('请输入正确的参数！');
+                }
+            });
+        };
+        newMethods.discountHeaderStyle1=function( row, column, rowIndex, columnIndex) {
+            if (row.rowIndex === 1) {
+                return { display: 'none' }
+            }
+        };
+        newMethods.init=function () {
+            let $this = this;
+
+<!-- 查看数据-->
+            $.ajax({
+                url:'/import/data/init/',
+                method:'post',
+                success:function (data) {
+                    if (data.status){
+                        $this.fileNames = data.file_names;
+                    }
+                    else{
+                        return false
+                    }
+                },
+               error: function (jqXHR, textStatus, errorThrown) {
+                       $this.$message.error('服务器有异常，请稍后重试');
+                       return false
+               },
+            })
+        };
+
+        var vm = new Vue({
+            el: '#app',
+            data: function () {
+                return newData;
+            },
+            computed:newComputed,
+            methods:newMethods,
+            watch:{
+                    NumParameter:function () {
+                        this.NumbersInput = parseInt(this.NumParameter);
+                    },
+                    deep:true
+            }
+        });
+        $(function () {
+            vm.initLocalUserMenus(vm);
+            vm.initUserMenus(vm);
+            vm.init();
+		});
+    </script>
+{% endblock %}

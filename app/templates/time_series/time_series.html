@@ -1,0 +1,662 @@
+{% extends "base.html" %}
+{% block title %}时间序列{% endblock %}
+{% block custom_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/data_import.css')}}">
+    <style>
+        .el-form-item {
+            margin-bottom: 0px;
+        }
+
+       .el-form > .el-form-item > .el-form-item__label {
+            width: 98px;
+        }
+        .el-form--inline .el-form-item {
+            display: inline-block;
+            margin-right: 0px;
+            vertical-align: top;
+        }
+        .el-table .cell {
+            line-height: 20px;
+        }
+        .el-dialog {
+            width: 90%;
+        }
+    </style>
+{% endblock %}
+{% block custom_content %}
+
+
+      <el-card style="min-height: 500px">
+          <el-card>
+              <template>
+                    <div>
+
+<!-- 组件：选择数据集 -->
+                        <div>
+                            <el-form :inline="true" style="margin-left: 10px">
+                                 <el-form-item label="数据集名称" size="mini" style="margin-left: 10px">
+                                     <el-select v-model="dataFileName" @change="checkDataName" placeholder="请选择" size="small">
+                                         <el-option v-for="item in fileNames" :value="item"></el-option>
+                                     </el-select>
+                                 </el-form-item>
+                                 <el-button @click="cb" size="mini" style="margin-left: 60%">数据集展开</el-button>
+                             </el-form>
+                        </div>
+
+<!-- 将从数据库中读取表值的特征遍历出来 -->
+                        <hr>
+                        <el-collapse-transition>
+                            <div v-if="show" style="padding: 1px 1px;background-color: #8fbbff">
+                                <el-alert :title="numAlter" type="info" :closable="false"></el-alert>
+                                <el-table :data="tableData" border style="width: 100%">
+                                    <template v-for="col in fileFeatureOptions">
+                                        <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                                    </template>
+                                </el-table>
+                            </div>
+                        </el-collapse-transition>
+
+                    </div>
+
+<!-- 组件：参数输入 -->
+              </template>
+              <el-form style="margin-top: 0px;font-size:14px;margin-left:2%" :inline="true" size="small">
+                  <el-form-item label="参数输入:">
+                      <div v-if="tableData.length>0" style="margin-top: 10px;border: 1px solid #2f3a50">
+
+<!-- 组件：选择序列 -->
+                          <template v-if="tableData.length>0 && (name==11 || name==12 || name==13 || name==21 || name==22 || name==31
+                                        || name==32 || name==33 || name==34 || name==35 || name==36)">
+                              <el-form>
+                                  <el-form-item label="选择序列：">
+                                      <el-checkbox-group v-model="dataFileFeature" :max="1" style="margin-right: 10px;margin-left: 10px">
+                                            <el-checkbox v-for="featureOption in fileFeatureOptions" :label="featureOption" :key="featureOption">{{featureOption}}</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+<!-- 组件:maxlag -->
+                          <template v-if="tableData.length>0 && (name==21)">
+                              <el-form>
+                                  <el-form-item label="maxlag：">
+                                      <el-tooltip content="小于数据集的总样本个数" placement="right" effect="light">
+                                          <el-input v-model="parameter_maxlag" placeholder="请输入" style="width: 100px" size="small"></el-input>
+                                      </el-tooltip>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+<!-- 组件：alternative -->
+                          <template v-if="tableData.length>0 && (name==21)">
+                              <el-form>
+                                  <el-form-item label="alternative：">
+                                      <el-checkbox-group v-model="selectedAutoLag" :max="1">
+                                          <el-checkbox v-for="option in autoLagOptions" :label="option" :key="option">{{option}}</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+<!-- 组件：平均值 -->
+                          <template v-if="tableData.length>0 && (name==35)">
+                              <el-form>
+                                  <el-form-item label="平均值：">
+                                      <el-checkbox-group v-model="selectedMean" :max="1">
+                                          <el-checkbox v-for="option in meanOptions" :label="option" :key="option">{{option}}</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+<!-- 组件：lags -->
+                          <template v-if="tableData.length>0 && (name==22 || name==35)">
+                              <el-form>
+                                  <el-form-item label="lags：">
+                                      <el-tooltip content="小于数据集的总样本个数" placement="right" effect="light">
+                                          <el-input v-model="parameter_lags" placeholder="请输入" style="width: 100px" size="small" style="width:130px"></el-input>
+                                      </el-tooltip>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+<!-- 组件：vol -->
+                          <template v-if="tableData.length>0 && (name==35)">
+                              <el-form>
+                                  <el-form-item label="vol：">
+                                      <el-checkbox-group v-model="selectedVol" :max="1">
+                                          <el-checkbox v-for="option in volOptions" :label="option" :key="option">{{option}}</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+<!-- 组件：p值 -->
+                          <template v-if="tableData.length>0 && (name==31 || name==33 || name==34 || name==35)">
+                              <el-form>
+                                  <el-form-item label="p值：">
+                                      <el-input v-model="parameter_p" placeholder="请输入" size="small" style="width:100px"></el-input>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+<!-- 组件：d值 -->
+                          <template v-if="tableData.length>0 && (name==34)">
+                              <el-form>
+                                  <el-form-item label="d值：">
+                                      <el-input v-model="parameter_d" placeholder="请输入" size="small" style="width:100px"></el-input>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+<!-- 组件：o值 -->
+                          <template v-if="tableData.length>0 && (name==35)">
+                              <el-form>
+                                  <el-form-item label="o值：">
+                                      <el-input v-model="parameter_o" placeholder="请输入" size="small" style="width:100px"></el-input>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+<!-- 组件：q值 -->
+                          <template v-if="tableData.length>0 && (name==32 || name==33 || name==34 || name==35)">
+                              <el-form>
+                                  <el-form-item label="q值：">
+                                      <el-input v-model="parameter_q" placeholder="请输入" size="small" style="width:100px"></el-input>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+<!-- 组件：预测步长 -->
+                          <template v-if="tableData.length>0 && (name ==31 || name==32 || name==33 || name==34)">
+                              <el-form>
+                                  <el-form-item label="预测步长：">
+                                      <el-input v-model="parameter_step" placeholder="请输入" size="small" style="width:100px"></el-input>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+<!-- 组件：dist -->
+                          <template v-if="tableData.length>0 && (name==35)">
+                              <el-form>
+                                  <el-form-item label="dist：">
+                                      <el-checkbox-group v-model="selectedDist" :max="1">
+                                          <el-checkbox v-for="option in distOptions" :label="option" :key="option">{{option}}</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+<!-- 组件：model -->
+                          <template v-if="tableData.length>0 && (name==36)">
+                              <el-form>
+                                  <el-form-item label="model：">
+                                      <el-checkbox-group v-model="selectedModel" :max="1">
+                                          <el-checkbox v-for="option in modelOptions" :label="option" :key="option">{{option}}</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+
+
+                      </div>
+                  </el-form-item>
+              </el-form>
+
+<!-- 控件：计算 -->
+              <el-form align="right">
+                  <el-form-item size="mini" style="margin-bottom: 1px">
+                      <el-button type="primary" @click="computeResult" style="margin-right: 70px" size="small">计算</el-button>
+                  </el-form-item>
+              </el-form>
+
+<!-- 组件：结果 -->
+          </el-card>
+          <el-form style="margin-top: 20px">
+              <el-card align="center" style="min-height: 300px">
+                  <el-form-item label="结果："></el-form-item>
+
+<!-- 处理返回的图片 -->
+                  <template v-if="screenImgUrl.length>0" v-for="screenImgUrl in result_plot">
+                      <br>
+                      <el-col :span="24/screenImgUrl.length" style="margin-left: 30%">
+                          <img :src="screenImgUrl" alt="" width="480px" height="480px" style="clear:both"/></el-col>
+                  </template>
+
+<!-- 平稳性检验：处理返回的数据 -->
+                  <template v-if="result_adfuller_1.length>0">
+                      <el-table :data="result_adfuller_1" border style="width: 80%">
+                          <el-table-column align="center" label="平稳性检验">
+                              <template v-for="col in result_adfuller_1cols">
+                                  <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+
+                  <br>
+
+<!-- 白噪声检验：处理数据 -->
+                  <template v-if="result_acorr_ljungbox.length>0">
+                      <el-table :data="result_acorr_ljungbox" border style="width: 80%" >
+                          <el-table-column align="center" label="白噪声检验">
+                              <template v-for="col in result_acorr_ljungboxcols">
+                                  <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+
+<!-- Model Summary：处理数据 -->
+                  <br>
+                  <template v-if="summary1.length>0">
+                      <el-table :data="summary1" border style="width: 80%" :header-cell-style="discountHeaderStyle1">
+                          <el-table-column align="center" label="Model Summary" >
+                              <template v-for="col in summary1cols">
+                                  <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+
+<!-- Coefficients：处理数据 -->
+                  <br>
+                  <template v-if="summary2.length>0">
+                      <el-table :data="summary2" border style="width: 80%">
+                          <el-table-column align="center" label="Coefficients">
+                              <template v-for="col in summary2cols">
+                                  <el-table-column :prop="col.prop" :label="col.label" :min-width="basicColsWidths[col]"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+
+<!-- predictions处理数据 -->
+                  <br>
+                  <template v-if="forecast.length>0">
+                      <el-table :data="forecast" border style="width: 80%">
+                          <el-table-column align="center" label="predictions">
+                              <template v-for="col in forecastcols">
+                                  <el-table-column :prop="col" :label="col"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+
+<!-- 季节分解结果：处理数据 -->
+                  <br>
+                  <template v-if="result_decompose.length>0">
+                      <el-table :data="result_decompose" border style="width: 80%">
+                          <el-table-column align="center" label="季节分解结果">
+                              <template v-for="col in result_decomposecols">
+                                  <el-table-column :prop="col" :label="col"></el-table-column>
+                              </template>
+                          </el-table-column>
+                      </el-table>
+                  </template>
+
+<!-- 处理图片格式 -->
+                  <template v-if="screenImgUrl.length>0" v-for="screenImgUrl in result_decompose_path">
+                      <br>
+                      <el-col :span="24/screenImgUrl.length" style="margin-left: 30%">
+                          <img :src="screenImgUrl"  width="480px" height="480px" style="clear:both"/></el-col>
+                  </template>
+              </el-card>
+          </el-form>
+      </el-card>
+{% endblock %}
+{% block custom_js %}
+
+
+<script>
+
+        let newData = JSON.parse(JSON.stringify(commonData));
+        newData.name={{ name }};
+        newData.defaultActive='1';
+        newData.breadcrumbOptionsPlus={
+            "1":'时序图',
+            "2":'ACF图',
+            "3":'PACF图',
+            "4":'平稳性检验',
+            "5":'白噪声检验',
+            "6":'AR模型',
+            "7":'MA模型',
+            "8":'ARMA模型',
+            "9":'ARIMA模型',
+            "10":'ARCH模型',
+            "11":'分解模型',
+        };
+        <!--  -->
+        newData.breadcrumbs=[];
+        <!--  -->
+        newData.fileName='';
+        <!-- 文件名 -->
+        newData.fileNames=[];
+        <!-- 数据集名称 -->
+        newData.dataFileName='';
+        <!--  -->
+        newData.updateSignal=false;
+        <!--  -->
+        newData.fullscreenLoading= false;
+        <!--  -->
+        newData.numAlter='预览前10行';
+        <!--  -->
+        newData.tableData=[];
+        <!--  -->
+        newData.activeNames= [];
+        <!-- 表的特征 -->
+        newData.fileFeatureOptions=[];
+        <!--  -->
+        newData.fileNameOptions=[];
+        <!-- lags -->
+        newData.parameter_lags='';
+        <!-- alternative： -->
+        newData.selectedAutoLag=[];
+        <!-- maxlags -->
+        newData.parameter_maxlag='';
+        <!-- 预测步长 -->
+        newData.parameter_step='';
+        <!-- p值 -->
+        newData.parameter_p='';
+        <!-- d值 -->
+        newData.parameter_d='';
+        <!-- q值 -->
+        newData.parameter_q='';
+        <!-- o值 -->
+        newData.parameter_o='';
+        <!-- 平均值 -->
+        newData.selectedMean=[];
+        <!-- Vol -->
+        newData.selectedVol=[];
+        <!-- dist： -->
+        newData.selectedDist=[];
+        <!--  -->
+        newData.dataFile='';
+        <!--  -->
+        newData.checkAll= false;
+        <!--  -->
+        newData.isIndeterminate=true;
+        <!-- 选择序列 -->
+        newData.dataFileFeature=[];
+        <!--  -->
+        newData.basicColsWidths=[];
+        <!-- 选择计算方法 -->
+        newData.selectedMethod='';
+        <!-- model： -->
+        newData.selectedModel=[];
+        <!--  -->
+        newData.boolOption='';
+        <!--  -->
+        newData.show=false;
+        <!-- alternative： -->
+        newData.autoLagOptions=['无', 'AIC', 'BIC', 't-stat'];
+        <!-- 平均值： -->
+        newData.meanOptions=['常数', '零', 'ARX', 'HARX'];
+        <!-- vol： -->
+        newData.volOptions=['ARCH', 'GARCH', 'EGARCH', 'FIARCH', 'HARCH'];
+        <!-- dist： -->
+        newData.distOptions=['正态分布', '高斯分布', 't分布', 'skewt分布'];
+        <!-- model： -->
+        newData.modelOptions=['additive', 'multiplicative'];
+        <!--  -->
+        newData.result_plot = [];
+        <!--  -->
+        newData.result_adfuller_1cols=[];
+        <!--  -->
+        newData.result_adfuller_1=[];
+        <!--  -->
+        newData.result_adfuller_2cols=[];
+        <!--  -->
+        newData.result_adfuller_2=[];
+        <!--  -->
+        newData.result_acorr_ljungboxcols=[];
+        <!--  -->
+        newData.result_acorr_ljungbox=[];
+        <!--  -->
+        newData.result_34_pdq_cols = [];
+        <!--  -->
+        newData.result_34_pdq = [];
+        <!--  -->
+        newData.summary1cols=[];
+        <!--  -->
+        newData.summary1=[];
+        <!--  -->
+        newData.summary2cols=[];
+        <!--  -->
+        newData.summary2=[];
+        <!--  -->
+        newData.summary3cols=[];
+        <!--  -->
+        newData.summary3=[];
+        <!--  -->
+        newData.forecastcols=[];
+        <!--  -->
+        newData.forecast=[];
+        <!--  -->
+        newData.result_decomposecols=[];
+        <!--  -->
+        newData.result_decompose=[];
+        <!--  -->
+        newData.result_decompose_path = [];
+        <!--  -->
+        let newComputed = Object.assign({},commonComputed);
+        <!--  -->
+
+        newComputed.breadcrumbs=function(){
+            if(this.name){
+                return ['时间序列', this.breadcrumbOptionsPlus[this.name]];
+            }else{
+                return ['时间序列'];
+            }
+        };
+
+        let newMethods = Object.assign({},commonMethods);
+
+        newMethods.cb=function() {
+            this.show = !this.show;
+        };
+
+        newMethods.checkDataName=function(){
+            <!--  选择序列 -->
+            this.dataFileFeature = [];
+            <!-- maxlag -->
+            this.parameter_maxlag = '';
+            <!-- alternative： -->
+            this.selectedAutoLag = [];
+            <!--  -->
+            this.selectedMean = [];
+            <!-- 小于数据集的总样本个数 -->
+            this.parameter_lags = '';
+            <!-- vol -->
+            this.selectedVol = [];
+            <!-- p值 -->
+            this.parameter_p = '';
+            <!-- d值 -->
+            this.parameter_d = '';
+            <!-- o值 -->
+            this.parameter_o = '';
+            <!-- q值 -->
+            this.parameter_q = '';
+            <!-- 预测步长 -->
+            this.parameter_step = '';
+            <!-- dist： -->
+            this.selectedDist = [];
+            <!-- model： -->
+            this.selectedModel = [];
+            <!--  -->
+            this.result_plot = [];
+            <!--  -->
+            this.result_adfuller_1cols=[];
+            <!--  -->
+            this.result_adfuller_1=[];
+            <!--  -->
+            this.result_adfuller_2cols=[];
+            <!--  -->
+            this.result_adfuller_2=[];
+            <!--  -->
+            this.result_acorr_ljungboxcols=[];
+            <!--  -->
+            this.result_acorr_ljungbox=[];
+            <!--  -->
+            this.summary1cols=[];
+            <!--  -->
+            this.summary1=[];
+            <!--  -->
+            this.summary2cols=[];
+            <!--  -->
+            this.summary2=[];
+            <!--  -->
+            this.summary3cols=[];
+            <!--  -->
+            this.summary3=[];
+            <!--  -->
+            this.forecastcols=[];
+            <!--  -->
+            this.forecast=[];
+            <!--  -->
+            this.result_decomposecols=[];
+            <!--  -->
+            this.result_decompose=[];
+            <!--  -->
+            this.result_decompose_path = [];
+            let $this = this;
+
+<!--  选择数据集 -->
+            $.ajax({
+                url:'/time_series/data/selectdata/',
+                data:{
+                    'file_name':$this.dataFileName,
+                },
+                method:'post',
+                dataType:'json',
+                success:function (data) {
+                    $this.fileFeatureOptions = data.file_features;
+                    $this.tableData = data.data;
+                },
+                error:function () {
+                    $this.loading=false;
+                    $this.$message.error('服务器有异常，请稍后重试');
+                }
+            });
+        };
+        newMethods.handleChange=function(){
+        };
+
+
+        newMethods.computeResult=function(){
+            const loading = this.$loading({
+                lock: true,
+                text: 'Loading',
+                spinner: 'el-icon-loading',
+                background: 'rgba(0, 0, 0, 0.7)'
+            });
+            let $this = this;
+
+<!-- 计算数据  -->
+            $.ajax({
+                url:'/time_series/data/compute/',
+                data:{
+                    <!--  选择数据集名称 -->
+                    'file_name':$this.dataFileName,
+                    <!--  -->
+                    'file_method':$this.name,
+                    <!--  选择序列 -->
+                    'file_feature':$this.dataFileFeature,
+                    <!-- maxlag -->
+                    'file_parameter_maxlag':$this.parameter_maxlag,
+                    <!-- alternative： -->
+                    'file_selectedAutoLag':$this.selectedAutoLag,
+                    <!--  -->
+                    'file_selectedMean':$this.selectedMean,
+                    <!--  -->
+                    'file_parameter_lags':$this.parameter_lags,
+                    <!--  -->
+                    'file_selectedVol':$this.selectedVol,
+                    <!--  -->
+                    'file_parameter_p':$this.parameter_p,
+                    <!--  -->
+                    'file_parameter_d':$this.parameter_d,
+                    <!--  -->
+                    'file_parameter_o':$this.parameter_o,
+                    <!--  -->
+                    'file_parameter_q':$this.parameter_q,
+                    <!-- 预测步长 -->
+                    'file_parameter_step':$this.parameter_step,
+                    <!-- dist：-->
+                    'file_selectedDist':$this.selectedDist,
+                    <!-- model： -->
+                    'file_selectedModel':$this.selectedModel,
+                },
+                method:'post',
+                dataType:'json',
+                success:function (data) {
+                    setTimeout(() => {
+                        loading.close();
+                    }, 10);
+                    $this.result_plot = data.result_plot;
+                    $this.result_adfuller_1cols = data.result_adfuller_1cols;
+                    $this.result_adfuller_1 = data.result_adfuller_1;
+                    $this.result_adfuller_2cols = data.result_adfuller_2cols;
+                    $this.result_adfuller_2 = data.result_adfuller_2;
+                    $this.result_acorr_ljungboxcols = data.result_acorr_ljungboxcols;
+                    $this.result_acorr_ljungbox = data.result_acorr_ljungbox;
+                    $this.summary1cols = data.summary1cols;
+                    $this.summary1 = data.summary1;
+                    $this.summary2cols = data.summary2cols;
+                    $this.summary2 = data.summary2;
+                    $this.forecastcols = data.forecastcols;
+                    $this.forecast = data.forecast;
+                    $this.result_decomposecols = data.result_decomposecols;
+                    $this.result_decompose = data.result_decompose;
+                    $this.result_decompose_path = data.result_decompose_path;
+                },
+                error:function (jqXHR, textStatus, errorThrown) {
+                    setTimeout(() => {
+                        loading.close();
+                    }, 10);
+                    $this.$message.error('请输入正确的参数！');
+                }
+            });
+        };
+        newMethods.discountHeaderStyle1=function( row, column, rowIndex, columnIndex) {
+            if (row.rowIndex === 1) {
+                return { display: 'none' }
+            }
+        };
+        newMethods.init=function () {
+            let $this = this;
+
+<!--  查看数据 -->
+            $.ajax({
+                url:'/import/data/init/',
+                method:'post',
+                success:function (data) {
+                    if (data.status){
+                        $this.fileNames = data.file_names;
+                    }
+                    else{
+                        return false
+                    }
+                },
+               error: function (jqXHR, textStatus, errorThrown) {
+                       $this.$message.error('服务器有异常，请稍后重试');
+                       return false
+               },
+            })
+        };
+
+        var vm = new Vue({
+            el: '#app',
+            data: function () {
+                return newData;
+            },
+            computed:newComputed,
+            methods:newMethods,
+        });
+        $(function () {
+            vm.initLocalUserMenus(vm);
+            vm.initUserMenus(vm);
+            vm.init();
+		});
+    </script>
+{% endblock %}

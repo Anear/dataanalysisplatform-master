@@ -1,0 +1,476 @@
+{% extends "base.html" %}
+{% block title %}基本检验{% endblock %}
+{% block custom_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/data_import.css')}}">
+    <style>
+        .el-form-item {
+            margin-bottom: 0px;
+        }
+
+        .el-form > .el-form-item > .el-form-item__label {
+            width: 98px;
+        }
+        .el-form--inline .el-form-item {
+            display: inline-block;
+            margin-right: 0px;
+            vertical-align: top;
+        }
+        .el-form >.el-form-item.field-form-item>.el-form-item__label{
+            width:auto;
+        }
+        .el-table .cell {
+            line-height: 20px;
+        }
+        .el-dialog {
+            width: 90%;
+        }
+    </style>
+{% endblock %}
+{% block custom_content %}
+
+
+      <el-card style="min-height: 500px">
+          <el-card>
+              <template>
+                    <div>
+                        <div>
+                            <el-form :inline="true" style="margin-left: 10px">
+                                 <el-form-item label="数据集名称" size="mini" style="margin-left: 10px">
+                                     <el-select v-model="dataFileName" @change="checkDataName" placeholder="请选择" size="small">
+                                         <el-option v-for="item in fileNames" :value="item"></el-option>
+                                     </el-select>
+                                 </el-form-item>
+                                 <el-button @click="cb" size="mini" style="margin-left: 60%">数据集展开</el-button>
+                             </el-form>
+                        </div>
+                        <hr>
+                        <el-collapse-transition>
+                            <div v-if="show" style="padding: 1px 1px;background-color: #8fbbff">
+                                <el-alert :title="numAlter" type="info" :closable="false"></el-alert>
+                                <el-table :data="tableData" border style="width: 100%">
+                                    <template v-for="col in fileFeatureOptions">
+                                        <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                                    </template>
+                                </el-table>
+                            </div>
+                        </el-collapse-transition>
+                    </div>
+              </template>
+              <el-form style="margin-top: 0px;font-size:14px;margin-left:2%" :inline="true">
+                  <el-form-item label="参数输入:" >
+                      <div v-if="tableData.length>0 && name!=32" style="margin-top: 10px;border: 1px solid #2f3a50">
+                          <template v-if="tableData.length>0 && (name==21 || name==51 || name==52 || name==53 || name==54 || name==71)">
+                              <el-form>
+                                  <el-form-item label="样本：">
+                                      <el-checkbox-group v-model="dataFileFeature1" :max="1" style="margin-right: 10px;margin-left: 10px">
+                                            <el-checkbox v-for="featureOption in fileFeatureOptions" :label="featureOption" :key="featureOption">{{featureOption}}</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==11 || name==12 || name==13 || name==22 || name==23 || name==41 || name==42)">
+                              <el-form>
+                                  <el-form-item label="样本：">
+                                      <el-checkbox-group v-model="dataFileFeature2" :max="2" style="margin-right: 10px;margin-left: 10px">
+                                          <el-checkbox v-for="featureOption in fileFeatureOptions" :label="featureOption" :key="featureOption">{{featureOption}}</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==43 || name==44 || name==61 || name==62 || name==63)">
+                              <el-form>
+                                  <el-form-item label="样本：">
+                                      <el-checkbox-group v-model="dataFileFeatures" @change="handleCheckedCitiesChange">
+                                            <el-checkbox v-for="featureOption in fileFeatureOptions" :label="featureOption" :key="featureOption">{{featureOption}}</el-checkbox>
+                                            <el-checkbox :indeterminate="isIndeterminate" v-model="checkAll" @change="handleCheckAllChange">全选</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==21)">
+                              <el-form>
+                                  <el-form-item label="平均值：">
+                                      <el-input v-model="popMeanParameter" placeholder="请输入" style="width: 100px" size="small"></el-input>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==22 || name==41 || name==42 || name==71)">
+                              <el-form>
+                                  <el-form-item label="连续性修正：">
+                                      <el-checkbox-group v-model="selectedBoolOption" :max="1">
+                                            <el-checkbox v-for="option in boolOptions" :label="option" :key="option">{{option}}</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==31)">
+                              <el-form>
+                                  <el-form-item label="划分比例：">
+                                      <el-checkbox-group v-model="proportionOption" :max="1">
+                                          <el-checkbox label="1">等比例</el-checkbox>
+                                          <el-checkbox label="2">自定义</el-checkbox>
+                                      </el-checkbox-group>
+                                      <template v-if="proportionOption[0]==2">
+                                          <el-tooltip content="输入格式：数值1,数值2,..." placement="right" effect="light">
+                                              <el-input v-model="expParameter" placeholder="请输入" size="small" style="width: 200px"></el-input>
+                                          </el-tooltip>
+                                      </template>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==53)">
+                              <el-form>
+                                  <el-form-item label="分布函数：">
+                                      <el-checkbox-group v-model="selectedFunctionOption_53" :max="1">
+                                          <el-checkbox v-for="option in functionOptions_53" :label="option" :key="option">{{option}}</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==54)">
+                              <el-form>
+                                  <el-form-item label="分布函数：">
+                                      <el-checkbox-group v-model="selectedFunctionOption" @change="handleChange" :max="1">
+                                          <el-checkbox v-for="option in functionOptions" :label="option" :key="option">{{option}}</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==54)">
+                              <el-form>
+                                  <el-form-item label="函数参数：">
+                                      <template v-if="uniform">
+                                          <el-input v-model="parameter_a" placeholder="a" style="width: 100px" size="small"></el-input>
+                                          <el-input v-model="parameter_b" placeholder="b" style="width: 100px" size="small"></el-input>
+                                      </template>
+                                      <template v-if="norm">
+                                          <el-input v-model="parameter_u" placeholder="μ" style="width: 100px" size="small"></el-input>
+                                          <el-input v-model="parameter_sigma" placeholder="σ^2" style="width: 100px" size="small"></el-input>
+                                      </template>
+                                      <template v-if="expon">
+                                          <el-input v-model="parameter_t" placeholder="λ" style="width: 100px" size="small"></el-input>
+                                      </template>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==41 || name==54)">
+                              <el-form>
+                                  <el-form-item label="检验方法：">
+                                      <el-checkbox-group v-model="selectedTestOption" :max="1">
+                                          <el-checkbox v-for="option in testOptions" :label="option" :key="option">{{option}}</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="tableData.length>0 && (name==71)">
+                              <el-form>
+                                  <el-form-item label="划分指标：">
+                                      <el-checkbox-group v-model="selectedDivisionOption" :max="1">
+                                          <el-checkbox v-for="option in divisionOptions" :label="option" :key="option">{{option}}</el-checkbox>
+                                      </el-checkbox-group>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                          <template v-if="selectedDivisionOption=='customize'">
+                              <el-form>
+                                  <el-form-item label="自定义参数：">
+                                      <el-input v-model="divisionParameter" placeholder="请输入" size="small"></el-input>
+                                  </el-form-item>
+                              </el-form>
+                          </template>
+                      </div>
+                  </el-form-item>
+              </el-form>
+              <el-form align="right">
+                  <el-form-item size="mini" style="margin-bottom: 1px">
+                      <el-button type="primary" v-loading.fullscreen.lock="fullscreenLoading" @click="computeResult" style="margin-right: 70px" size="small">计算</el-button>
+                  </el-form-item>
+              </el-form>
+          </el-card>
+          <el-form style="margin-top: 20px">
+              <el-card align="center" style="min-height: 300px">
+                  <el-form-item label="结果:"></el-form-item>
+                  <template v-if="tableResult.length>0">
+                      <el-table :data="tableResult" border style="width: 50%">
+                          <template v-for="col in Cols">
+                              <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                          </template>
+                      </el-table>
+                  </template>
+                  <template v-if="result_MarPro.length>0">
+                      <el-table :data="result_MarPro" border style="width: 90%">
+                          <template v-for="col in MarPro_cols">
+                              <el-table-column :prop="col" :label="col" :min-width="basicColsWidths[col]"></el-table-column>
+                          </template>
+                      </el-table>
+                  </template>
+              </el-card>
+          </el-form>
+      </el-card>
+{% endblock %}
+{% block custom_js %}
+
+
+<script>
+
+        let newData = JSON.parse(JSON.stringify(commonData));
+        newData.name={{name}};
+        newData.defaultActive='1';
+        newData.breadcrumbOptionsPlus={
+            "11":'相关性检验',
+            "12":'相关性检验',
+            "13":'相关性检验',
+            "21":'均值t检验',
+            "22":'均值t检验',
+            "23":'均值t检验',
+            "41":'非参数检验',
+            "42":'非参数检验',
+            "43":'非参数检验',
+            "44":'非参数检验',
+            "51":'正态性检验',
+            "52":'正态性检验',
+            "53":'正态性检验',
+            "54":'正态性检验',
+            "61":'方差齐性检验',
+            "62":'方差齐性检验',
+            "63":'方差齐性检验',
+            "71":'随机性检验',
+        };
+        newData.breadcrumbOptions={
+            "11":'皮尔森相关性系数',
+            "12":'斯皮尔曼相关性系数',
+            "13":'肯德尔相关性系数',
+            "21":'单样本t检验',
+            "22":'两独立样本t检验',
+            "23":'两配对样本t检验',
+            "41":'曼-惠特尼U检验',
+            "42":'Wilcoxon符号秩检验',
+            "43":'克鲁斯卡尔-沃利斯检验',
+            "44":'弗里德曼检验',
+            "51":'夏皮罗-威尔克检验',
+            "52":'正态分布检验',
+            "53":'安德森检验',
+            "54":'KS检验',
+            "61":'巴特利检验',
+            "62":'Levene检验',
+            "63":'Fligner-Killeen检验',
+            "71":'游程检验',
+        };
+        newData.fileName='';
+        newData.fileNames=[];
+        newData.dataFileName='';
+        newData.updateSignal=false;
+        newData.fullscreenLoading= false;
+        newData.fileFeatureOptions=[];
+        newData.fileNameOptions=[];
+        newData.parameter_a='';
+        newData.parameter_b='';
+        newData.parameter_u='';
+        newData.parameter_sigma='';
+        newData.parameter_t='';
+        newData.popMeanParameter='';
+        newData.expParameter='';
+        newData.divisionParameter='';
+        newData.dataFile='';
+        newData.dataFileFeature='';
+        newData.Cols=[];
+        newData.loading=false;
+        newData.dataFileFeature1=[];
+        newData.dataFileFeature2=[];
+        newData.dataFileFeatures=[];
+        newData.dataFileFeatures_12=[];
+        newData.tableResult=[];
+        newData.cols=[];
+        newData.MarPro_cols=[];
+        newData.result_MarPro=[];
+        newData.basicColsWidths=[];
+        newData.selectedDivisionOption=[];
+        newData.selectedMethod='';
+        newData.selectedFunctionOption_53=[];
+        newData.selectedFunctionOption=[];
+        newData.selectedTestOption=[];
+        newData.selectedBoolOption=[];
+        newData.proportionOption=[];
+        newData.numAlter='预览前10行';
+        newData.tableData=[];
+        newData.activeNames= [];
+        newData.checkAll= false;
+        newData.isIndeterminate= true;
+        newData.uniform=false;
+        newData.norm=false;
+        newData.expon=false;
+        newData.show=false;
+        newData.functionOptions_53=['正态分布', '指数分布'];
+        newData.functionOptions=['均匀分布', '正态分布', '指数分布'];
+        newData.testOptions=['双尾检验', '左尾检验', '右尾检验'];
+        newData.divisionOptions=['均值','中位数'];
+        newData.boolOptions=['是','否'];
+
+        let newComputed = Object.assign({},commonComputed);
+        newComputed.breadcrumbs=function(){
+            if(this.name){
+                return ['统计检验', this.breadcrumbOptionsPlus[this.name], this.breadcrumbOptions[this.name]];
+            }else{
+                return ['统计检验'];
+            }
+        };
+
+        let newMethods = Object.assign({},commonMethods);
+        newMethods.cb=function() {
+            this.show = !this.show;
+        };
+        newMethods.checkDataName=function(){
+            this.dataFileFeature1=[];
+            this.dataFileFeature2=[];
+            this.dataFileFeatures=[];
+            this.popMeanParameter='';
+            this.selectedBoolOption=[];
+            this.expParameter='';
+            this.selectedFunctionOption_53=[];
+            this.selectedFunctionOption=[];
+            this.parameter_a='';
+            this.parameter_b='';
+            this.parameter_u='';
+            this.parameter_sigma='';
+            this.parameter_t='';
+            this.selectedTestOption=[];
+            this.selectedDivisionOption=[];
+            this.divisionParameter='';
+            this.Cols = [];
+            this.tableResult = [];
+            let $this = this;
+
+
+<!--选择数据集-->
+            $.ajax({
+                url:'/basic_test/data/selectdata/',
+                data:{
+                    'file_name':$this.dataFileName,
+                },
+                method:'post',
+                dataType:'json',
+                success:function (data) {
+                    $this.fileFeatureOptions = data.file_features;
+                    $this.tableData = data.data;
+                },
+                error:function () {
+                    $this.loading=false;
+                    $this.$message.error('服务器有异常，请稍后重试');
+                }
+            });
+        };
+
+
+        newMethods.handleChange=function(){
+                if (this.selectedFunctionOption.indexOf ('均匀分布')>-1) {
+                this.uniform=true;this.norm=false;this.expon=false;
+            }
+            if (this.selectedFunctionOption.indexOf ('正态分布')>-1) {
+                this.uniform=false;this.norm=true;this.expon=false;
+            }
+            if (this.selectedFunctionOption.indexOf ('指数分布')>-1) {
+                this.uniform=false;this.norm=false;this.expon=true;
+            }
+            if (this.selectedFunctionOption.length===0) {
+                this.uniform=false;this.norm=false;this.expon=false;
+            }
+        };
+        newMethods.handleCheckAllChange=function(val) {
+            this.dataFileFeatures = val ? this.fileFeatureOptions : [];
+            this.isIndeterminate = false;
+        };
+        newMethods.handleCheckedCitiesChange=function(value) {
+            let checkedCount = value.length;
+            this.checkAll = checkedCount === this.fileFeatureOptions.length;
+            this.isIndeterminate = checkedCount > 0 && checkedCount < this.fileFeatureOptions.length;
+        };
+        newMethods.computeResult=function(){
+            const loading = this.$loading({
+                lock: true,
+                text: 'Loading',
+                spinner: 'el-icon-loading',
+                background: 'rgba(0, 0, 0, 0.7)'
+            });
+            let $this = this;
+
+
+<!--通过算法计算结果-->
+            $.ajax({
+                url:'/basic_test/data/compute/',
+                data:{
+                    'file_name':$this.dataFileName,
+                    'file_method':$this.name,
+                    'file_feature1':$this.dataFileFeature1,
+                    'file_feature2':$this.dataFileFeature2,
+                    'file_features':$this.dataFileFeatures,
+                    'file_popMeanParameter':$this.popMeanParameter,
+                    'file_selectedBoolOption':$this.selectedBoolOption,
+                    'file_expParameter':$this.expParameter,
+                    'file_selectedFunctionOption_53':$this.selectedFunctionOption_53,
+                    'file_selectedFunctionOption':$this.selectedFunctionOption,
+                    'file_parameter_a':$this.parameter_a,
+                    'file_parameter_b':$this.parameter_b,
+                    'file_parameter_u':$this.parameter_u,
+                    'file_parameter_sigma':$this.parameter_sigma,
+                    'file_parameter_t':$this.parameter_t,
+                    'file_selectedTestOption':$this.selectedTestOption,
+                    'file_selectedDivisionOption':$this.selectedDivisionOption,
+                    'file_divisionParameter':$this.divisionParameter,
+                },
+                method:'post',
+                dataType:'json',
+                success:function (data) {
+                    setTimeout(() => {
+                        loading.close();
+                    }, 10);
+                    $this.Cols = data.col;
+                    $this.tableResult = data.result;
+                },
+                error:function () {
+                    setTimeout(() => {
+                        loading.close();
+                    }, 10);
+                    $this.$message.error('请输入正确的参数！');
+            }
+        });
+        };
+
+
+        newMethods.init=function () {
+            let $this = this;
+
+
+<!--  -->
+            $.ajax({
+                url:'/import/data/init/',
+                method:'post',
+                success:function (data) {
+                    if (data.status){
+                        $this.fileNames = data.file_names;
+                    }
+                    else{
+                        return false
+                    }
+                },
+               error: function (jqXHR, textStatus, errorThrown) {
+                       $this.$message.error('服务器有异常，请稍后重试');
+                       return false
+               },
+            })
+        };
+
+        var vm = new Vue({
+            el: '#app',
+            data: function () {
+                return newData;
+            },
+            computed:newComputed,
+            methods:newMethods,
+        });
+        $(function () {
+            vm.initLocalUserMenus(vm);
+            vm.initUserMenus(vm);
+            vm.init();
+		});
+    </script>
+{% endblock %}
