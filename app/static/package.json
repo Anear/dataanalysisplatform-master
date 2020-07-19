@@ -4,7 +4,7 @@
     "element-ui": "^2.9.0",
     "font-awesome": "^4.7.0",
     "font-awesome5": "^1.0.5",
-    "jquery": "^3.3.1",
+    "jquery": "^3.5.0",
     "vue": "^2.6.8"
   }
 }
