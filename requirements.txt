@@ -35,7 +35,7 @@ optional-django==0.1.0
 packaging==20.3
 pandas==0.23.4
 patsy==0.5.1
-Pillow==5.4.1
+Pillow==8.1.1
 pluggy==0.13.1
 property-cached==1.6.4
 py==1.8.1
